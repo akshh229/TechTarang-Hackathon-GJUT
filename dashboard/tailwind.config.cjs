@@ -22,8 +22,8 @@ module.exports = {
         grid: "linear-gradient(rgba(136, 104, 76, 0.09) 1px, transparent 1px), linear-gradient(90deg, rgba(136, 104, 76, 0.09) 1px, transparent 1px)",
       },
       fontFamily: {
-        display: ["'Space Grotesk'", "system-ui", "sans-serif"],
-        body: ["'IBM Plex Sans'", "system-ui", "sans-serif"],
+        display: ["system-ui", "sans-serif"],
+        body: ["system-ui", "sans-serif"],
       },
     },
   },

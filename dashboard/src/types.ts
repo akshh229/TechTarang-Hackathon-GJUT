@@ -138,6 +138,60 @@ export interface AdaptiveDefenseSimulation {
   model_backend: string;
 }
 
+export interface AdaptiveDefenseStatus {
+  enabled: boolean;
+  active_families: string[];
+  protected_surfaces: string[];
+  prompt_guardrail_count: number;
+  semantic_signal_count: number;
+  ml_signature_count: number;
+  response_playbook_count: number;
+  model_backend: string;
+  overlay_policy_path: string;
+  service?: string;
+}
+
+export interface PolicyRecommendationItem {
+  rule_type: string;
+  description: string;
+  proposed_value: Record<string, unknown>;
+  confidence: number;
+  evidence_count: number;
+  impact: string;
+  safe_to_auto_apply: boolean;
+}
+
+export interface PolicyRecommendationResult {
+  recommendations: PolicyRecommendationItem[];
+  false_positive_candidates: string[];
+  summary: string;
+  digest?: Record<string, unknown> | null;
+  generated_at?: string | null;
+}
+
+export interface AttackReportCompileResult {
+  report_id: string;
+  generated_at: string;
+  title: string;
+  severity: string;
+  detected_families: string[];
+  detected_surfaces: string[];
+  rationale: string[];
+  ml_analysis?: Record<string, unknown>;
+  policy_patch: Record<string, unknown>;
+  policy_patch_yaml: string;
+  merged_policy_preview: Record<string, unknown>;
+  summary: {
+    new_injection_rules: number;
+    new_guardrails: number;
+    new_semantic_signals: number;
+    new_ml_signatures: number;
+  };
+  applied: boolean;
+  overlay_policy_path?: string;
+  overlay_policy_yaml?: string;
+}
+
 export interface SocketMessage {
   type: "bootstrap" | "telemetry";
   payload: TelemetryRecord | TelemetryRecord[];

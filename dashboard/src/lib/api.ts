@@ -1,9 +1,12 @@
 import type {
+  AdaptiveDefenseStatus,
   AdaptiveDefenseSimulation,
+  AttackReportCompileResult,
   DashboardCopilotResponse,
   DashboardSummary,
   IncidentDrilldown,
   Incident,
+  PolicyRecommendationResult,
   Scenario,
   SocketMessage,
 } from "../types";
@@ -77,6 +80,52 @@ export async function simulateAdaptiveDefense(
   return fetchJson<AdaptiveDefenseSimulation>("/adaptive-defense/simulate", {
     method: "POST",
     body: JSON.stringify({ message }),
+  });
+}
+
+export async function getAdaptiveDefenseStatus(): Promise<AdaptiveDefenseStatus> {
+  return fetchJson<AdaptiveDefenseStatus>("/adaptive-defense/status");
+}
+
+export async function compileAttackReport(payload: {
+  title: string;
+  reportText: string;
+  summary?: string;
+  severity?: string;
+  attackSurface?: string[];
+  indicators?: string[];
+  payloadExamples?: string[];
+  references?: string[];
+  applyChanges?: boolean;
+}): Promise<AttackReportCompileResult> {
+  return fetchJson<AttackReportCompileResult>("/adaptive-defense/compile", {
+    method: "POST",
+    body: JSON.stringify({
+      title: payload.title,
+      report_text: payload.reportText,
+      summary: payload.summary ?? "",
+      severity: payload.severity ?? "HIGH",
+      attack_surface: payload.attackSurface ?? [],
+      indicators: payload.indicators ?? [],
+      payload_examples: payload.payloadExamples ?? [],
+      references: payload.references ?? [],
+      apply_changes: payload.applyChanges ?? false,
+    }),
+  });
+}
+
+export async function recommendPolicy(payload?: {
+  minEvents?: number;
+  timeWindowHours?: number | null;
+  includeFalsePositiveReview?: boolean;
+}): Promise<PolicyRecommendationResult> {
+  return fetchJson<PolicyRecommendationResult>("/adaptive-defense/recommend", {
+    method: "POST",
+    body: JSON.stringify({
+      min_events: payload?.minEvents ?? 5,
+      time_window_hours: payload?.timeWindowHours ?? null,
+      include_false_positive_review: payload?.includeFalsePositiveReview ?? true,
+    }),
   });
 }
 

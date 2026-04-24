@@ -29,6 +29,7 @@ import {
 import { AdaptiveDefensePanel } from "./components/AdaptiveDefensePanel";
 import { AttackFeedTable } from "./components/AttackFeedTable";
 import { DashboardCopilotPanel } from "./components/DashboardCopilotPanel";
+import { HumanReviewPanel } from "./components/HumanReviewPanel";
 import { IncidentsPanel } from "./components/IncidentsPanel";
 import { MetricCard } from "./components/MetricCard";
 import { SimulatorPanel } from "./components/SimulatorPanel";
@@ -62,6 +63,7 @@ const chartTooltipStyle = {
   borderRadius: 18,
   color: "rgb(43, 35, 29)",
 };
+const heroHeadline = "SUDARSHAN AI firewall dashboard for SQL and multimodal attack telemetry.";
 
 export default function App() {
   const dashboardRef = useRef<HTMLDivElement | null>(null);
@@ -76,13 +78,21 @@ export default function App() {
     simulatingId,
     adaptiveSimulation,
     adaptiveInput,
+    adaptiveStatus,
+    compiledReport,
+    policyRecommendations,
     adaptiveSimulating,
+    reportCompiling,
+    recommendationLoading,
     copilotResponse,
     copilotLoading,
+    usingDemoData,
     highlights,
     refresh,
     triggerSimulation,
     runAdaptiveSimulation,
+    analyzeAttackReport,
+    refreshPolicyRecommendations,
     runCopilotQuery,
     setAdaptiveInput,
   } = useSecurityDashboard();
@@ -90,6 +100,34 @@ export default function App() {
   const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null);
   const [incidentRecords, setIncidentRecords] = useState<TelemetryRecord[]>([]);
   const [incidentLoading, setIncidentLoading] = useState(false);
+  const [typedHeadline, setTypedHeadline] = useState("");
+  const [heroTypingDone, setHeroTypingDone] = useState(false);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    if (mediaQuery.matches) {
+      setTypedHeadline(heroHeadline);
+      setHeroTypingDone(true);
+      return;
+    }
+
+    setTypedHeadline("");
+    setHeroTypingDone(false);
+    let currentIndex = 0;
+    const interval = window.setInterval(() => {
+      currentIndex += 1;
+      setTypedHeadline(heroHeadline.slice(0, currentIndex));
+
+      if (currentIndex >= heroHeadline.length) {
+        window.clearInterval(interval);
+        setHeroTypingDone(true);
+      }
+    }, 34);
+
+    return () => {
+      window.clearInterval(interval);
+    };
+  }, []);
 
   useEffect(() => {
     const dashboard = dashboardRef.current;
@@ -345,10 +383,14 @@ export default function App() {
             <div className="max-w-3xl">
               <div className="interactive-chip inline-flex items-center gap-3 rounded-full border border-borderGlass/15 bg-white/55 px-4 py-2 text-xs uppercase tracking-[0.28em] text-muted">
                 <Shield size={14} />
-                Secure AI Interaction Layer
+                SUDARSHAN Secure AI Interaction Layer
               </div>
-              <h1 className="mt-6 max-w-4xl font-display text-4xl font-semibold leading-tight md:text-5xl">
-                AI firewall dashboard for SQL and multimodal attack telemetry.
+              <h1
+                className={`mt-6 max-w-4xl min-h-[3.6em] font-display text-4xl font-semibold leading-tight md:min-h-[3.1em] md:text-5xl ${
+                  heroTypingDone ? "" : "type-caret"
+                }`}
+              >
+                {typedHeadline}
               </h1>
               <p className="mt-5 max-w-3xl text-base leading-8 text-muted md:text-lg">
                 Live middleware observability for prompt injection, session replay anomalies,
@@ -414,6 +456,27 @@ export default function App() {
             icon={<Orbit size={18} />}
           />
         </section>
+
+        <HumanReviewPanel
+          status={adaptiveStatus}
+          compiledReport={compiledReport}
+          recommendations={policyRecommendations}
+          reportLoading={reportCompiling}
+          recommendationLoading={recommendationLoading}
+          usingDemoData={usingDemoData}
+          onAnalyzeReport={analyzeAttackReport}
+          onRefreshRecommendations={refreshPolicyRecommendations}
+        />
+
+        <div className="adaptive-defense-result">
+          <AdaptiveDefensePanel
+            input={adaptiveInput}
+            result={adaptiveSimulation}
+            loading={adaptiveSimulating}
+            onInputChange={setAdaptiveInput}
+            onRun={runAdaptiveSimulation}
+          />
+        </div>
 
         <section className="grid gap-5 xl:grid-cols-[1.15fr_0.85fr]">
           <div className="reveal-card rounded-[28px] border border-borderGlass/14 bg-panel/80 p-5 shadow-glass backdrop-blur-xl">
@@ -812,16 +875,12 @@ export default function App() {
           </div>
         </section>
 
-        <div className="adaptive-defense-result">
-          <AdaptiveDefensePanel
-            input={adaptiveInput}
-            result={adaptiveSimulation}
-            loading={adaptiveSimulating}
-            onInputChange={setAdaptiveInput}
-            onRun={runAdaptiveSimulation}
-          />
-        </div>
-
+        {usingDemoData ? (
+          <div className="reveal-card rounded-[24px] border border-warning/20 bg-warning/10 px-5 py-4 text-sm text-warning">
+            Backend telemetry was unavailable or empty, so the dashboard is showing demo data and
+            a seeded human-review workflow.
+          </div>
+        ) : null}
         {error ? (
           <div className="reveal-card rounded-[24px] border border-danger/20 bg-danger/10 px-5 py-4 text-sm text-danger">
             {error}
