@@ -1,6 +1,6 @@
 [build]
   base = "dashboard"
-  command = "npm run build"
+  command = "chmod -R +x node_modules/.bin && npm run build"
   publish = "dist"
 
 [[redirects]]
