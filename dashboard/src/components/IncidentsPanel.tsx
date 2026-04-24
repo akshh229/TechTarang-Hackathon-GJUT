@@ -44,7 +44,7 @@ export function IncidentsPanel({
         <button
           type="button"
           onClick={() => onFamilyChange(null)}
-          className={`rounded-full border px-3 py-1.5 text-[0.68rem] uppercase tracking-[0.18em] transition ${
+          className={`interactive-chip rounded-full border px-3 py-1.5 text-[0.68rem] uppercase tracking-[0.18em] transition ${
             selectedFamily === null
               ? "border-accent/30 bg-accent/10 text-accent"
               : "border-borderGlass/12 bg-white/55 text-muted hover:bg-white/75 hover:text-ink"
@@ -57,7 +57,7 @@ export function IncidentsPanel({
             key={family}
             type="button"
             onClick={() => onFamilyChange(family)}
-            className={`rounded-full border px-3 py-1.5 text-[0.68rem] uppercase tracking-[0.18em] transition ${
+            className={`interactive-chip rounded-full border px-3 py-1.5 text-[0.68rem] uppercase tracking-[0.18em] transition ${
               selectedFamily === family
                 ? "border-accent/30 bg-accent/10 text-accent"
                 : "border-borderGlass/12 bg-white/55 text-muted hover:bg-white/75 hover:text-ink"
@@ -81,7 +81,7 @@ export function IncidentsPanel({
               type="button"
               key={incident.incident_id}
               onClick={() => onSelectIncident(incident)}
-              className={`w-full rounded-[22px] border p-4 text-left transition ${
+              className={`interactive-item w-full rounded-[22px] border p-4 text-left transition ${
                 selectedIncidentId === incident.incident_id
                   ? "border-accent/30 bg-accent/10"
                   : "border-borderGlass/10 bg-panelSoft/70 hover:bg-panelSoft"
@@ -100,13 +100,13 @@ export function IncidentsPanel({
               </div>
 
               <div className="mt-4 flex flex-wrap gap-2">
-                <span className="rounded-full border border-borderGlass/12 bg-white/55 px-3 py-1.5 text-[0.68rem] uppercase tracking-[0.16em] text-muted">
+                <span className="interactive-chip rounded-full border border-borderGlass/12 bg-white/55 px-3 py-1.5 text-[0.68rem] uppercase tracking-[0.16em] text-muted">
                   {incident.family}
                 </span>
                 {incident.top_signals.map((signal) => (
                   <span
                     key={`${incident.incident_id}-${signal.signal}`}
-                    className="rounded-full border border-accent/20 bg-accent/10 px-3 py-1.5 text-[0.68rem] uppercase tracking-[0.16em] text-accent"
+                    className="interactive-chip rounded-full border border-accent/20 bg-accent/10 px-3 py-1.5 text-[0.68rem] uppercase tracking-[0.16em] text-accent"
                   >
                     {signal.signal} · {signal.count}
                   </span>
@@ -114,20 +114,20 @@ export function IncidentsPanel({
               </div>
 
               <div className="mt-4 grid gap-4 md:grid-cols-2">
-                <div className="rounded-[18px] border border-borderGlass/10 bg-white/55 p-4">
+                <div className="interactive-item rounded-[18px] border border-borderGlass/10 bg-white/55 p-4">
                   <p className="text-[0.68rem] uppercase tracking-[0.2em] text-muted">Latest explanation</p>
                   <p className="mt-3 text-sm leading-7 text-ink/90">
                     {incident.latest_explanation || "No explanation stored for this cluster."}
                   </p>
                 </div>
-                <div className="rounded-[18px] border border-borderGlass/10 bg-white/55 p-4">
+                <div className="interactive-item rounded-[18px] border border-borderGlass/10 bg-white/55 p-4">
                   <p className="text-[0.68rem] uppercase tracking-[0.2em] text-muted">Sample payload</p>
                   <p className="mt-3 text-sm leading-7 text-ink/90">{incident.sample_input}</p>
                 </div>
               </div>
 
               {incident.latest_safe_rewrite ? (
-                <div className="mt-4 rounded-[18px] border border-success/20 bg-success/10 p-4">
+                <div className="interactive-item mt-4 rounded-[18px] border border-success/20 bg-success/10 p-4">
                   <p className="text-[0.68rem] uppercase tracking-[0.2em] text-success">Safe rewrite</p>
                   <p className="mt-3 text-sm leading-7 text-ink/90">{incident.latest_safe_rewrite}</p>
                 </div>

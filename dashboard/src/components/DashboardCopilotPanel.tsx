@@ -69,7 +69,7 @@ export function DashboardCopilotPanel({
                 key={starter}
                 type="button"
                 onClick={() => setQuestion(starter)}
-                className="rounded-full border border-borderGlass/12 bg-white/55 px-3 py-1.5 text-xs uppercase tracking-[0.18em] text-muted transition hover:bg-white/75 hover:text-ink"
+                className="interactive-chip rounded-full border border-borderGlass/12 bg-white/55 px-3 py-1.5 text-xs uppercase tracking-[0.18em] text-muted transition hover:bg-white/75 hover:text-ink"
               >
                 {starter}
               </button>
@@ -95,7 +95,7 @@ export function DashboardCopilotPanel({
               type="button"
               onClick={() => onSubmit(question.trim())}
               disabled={loading || question.trim().length < 3}
-              className="rounded-full border border-accent/30 bg-accent/10 px-4 py-2 text-xs uppercase tracking-[0.24em] text-accent transition hover:bg-accent/20 disabled:cursor-not-allowed disabled:opacity-50"
+              className="action-button rounded-full border border-accent/30 bg-accent/10 px-4 py-2 text-xs uppercase tracking-[0.24em] text-accent disabled:cursor-not-allowed disabled:opacity-50"
             >
               {loading ? "Thinking" : "Run query"}
             </button>
@@ -112,7 +112,7 @@ export function DashboardCopilotPanel({
                 {response.supporting_metrics.map((metric) => (
                   <span
                     key={metric.label}
-                    className="rounded-full border border-borderGlass/12 bg-panelSoft/70 px-3 py-1.5 text-[0.68rem] uppercase tracking-[0.18em] text-muted"
+                    className="interactive-chip rounded-full border border-borderGlass/12 bg-panelSoft/70 px-3 py-1.5 text-[0.68rem] uppercase tracking-[0.18em] text-muted"
                   >
                     {metric.label}: {metric.value}
                   </span>
@@ -126,7 +126,7 @@ export function DashboardCopilotPanel({
                     {response.cited_incidents.map((incident) => (
                       <div
                         key={incident.incident_id}
-                        className="rounded-[18px] border border-borderGlass/10 bg-panelSoft/65 px-3 py-3 text-sm text-ink/90"
+                        className="interactive-item rounded-[18px] border border-borderGlass/10 bg-panelSoft/65 px-3 py-3 text-sm text-ink/90"
                       >
                         {incident.label}
                       </div>
@@ -140,7 +140,7 @@ export function DashboardCopilotPanel({
                     {response.cited_records.map((record) => (
                       <div
                         key={record.request_id}
-                        className="rounded-[18px] border border-borderGlass/10 bg-panelSoft/65 px-3 py-3 text-sm text-ink/90"
+                        className="interactive-item rounded-[18px] border border-borderGlass/10 bg-panelSoft/65 px-3 py-3 text-sm text-ink/90"
                       >
                         {record.request_id.slice(0, 8)} · {record.action_taken} · {record.risk_level}
                       </div>

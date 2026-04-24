@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import { PolarAngleAxis, RadialBar, RadialBarChart, ResponsiveContainer } from "recharts";
 
 interface ThreatGaugeProps {
@@ -8,9 +9,13 @@ export function ThreatGauge({ score }: ThreatGaugeProps) {
   const clampedScore = Math.max(0, Math.min(score, 100));
   const tone =
     clampedScore >= 60 ? "var(--danger)" : clampedScore >= 30 ? "var(--warning)" : "var(--success)";
+  const stance = clampedScore >= 60 ? "Block" : clampedScore >= 30 ? "Flag" : "Pass";
 
   return (
-    <div className="reveal-card rounded-[28px] border border-borderGlass/14 bg-panel/80 p-5 shadow-glass backdrop-blur-xl">
+    <div
+      className="reveal-card threat-gauge-shell rounded-[28px] border border-borderGlass/14 bg-panel/80 p-5 shadow-glass backdrop-blur-xl"
+      style={{ "--gauge-tone": tone } as CSSProperties}
+    >
       <div className="mb-4 flex items-center justify-between">
         <div>
           <p className="text-[0.68rem] uppercase tracking-[0.35em] text-muted">Threat Gauge</p>
@@ -22,6 +27,7 @@ export function ThreatGauge({ score }: ThreatGaugeProps) {
       </div>
 
       <div className="relative h-56">
+        <div className="threat-gauge-ring" />
         <ResponsiveContainer width="100%" height="100%">
           <RadialBarChart
             innerRadius="55%"
@@ -37,9 +43,7 @@ export function ThreatGauge({ score }: ThreatGaugeProps) {
         </ResponsiveContainer>
         <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
           <span className="font-display text-5xl font-semibold text-ink">{clampedScore}</span>
-          <span className="mt-2 text-sm uppercase tracking-[0.25em] text-muted">
-            {clampedScore >= 60 ? "Block" : clampedScore >= 30 ? "Flag" : "Pass"}
-          </span>
+          <span className="mt-2 text-sm uppercase tracking-[0.25em] text-muted">{stance}</span>
         </div>
       </div>
     </div>

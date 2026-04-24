@@ -142,6 +142,9 @@ export default function App() {
               start: "top 88%",
               once: true,
             },
+            onComplete: () => {
+              gsap.set(card, { clearProps: "transform" });
+            },
           },
         );
       });
@@ -354,7 +357,7 @@ export default function App() {
             </div>
 
             <div className="grid gap-4 md:grid-cols-3 xl:min-w-[28rem]">
-              <div className="interactive-item hero-float rounded-[28px] border border-borderGlass/12 bg-panelSoft/80 p-5">
+              <div className="hero-float rounded-[28px] border border-borderGlass/12 bg-panelSoft/80 p-5">
                 <p className="text-[0.68rem] uppercase tracking-[0.32em] text-muted">Socket</p>
                 <div className="mt-4 flex items-center gap-3">
                   <span
@@ -366,14 +369,14 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="interactive-item hero-float rounded-[28px] border border-borderGlass/12 bg-panelSoft/80 p-5">
+              <div className="hero-float rounded-[28px] border border-borderGlass/12 bg-panelSoft/80 p-5">
                 <p className="text-[0.68rem] uppercase tracking-[0.32em] text-muted">Provider</p>
                 <p className="mt-4 font-display text-2xl font-semibold capitalize">
                   {highlights.currentProvider}
                 </p>
               </div>
 
-              <div className="interactive-item hero-float rounded-[28px] border border-borderGlass/12 bg-panelSoft/80 p-5">
+              <div className="hero-float rounded-[28px] border border-borderGlass/12 bg-panelSoft/80 p-5">
                 <p className="text-[0.68rem] uppercase tracking-[0.32em] text-muted">Active Score</p>
                 <p className="mt-4 font-display text-2xl font-semibold">{highlights.activeThreatScore}</p>
               </div>

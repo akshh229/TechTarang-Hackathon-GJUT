@@ -67,7 +67,7 @@ export function AttackFeedTable({
             <button
               type="button"
               onClick={onClearDrilldown}
-              className="rounded-full border border-accent/20 bg-white/55 px-3 py-1 text-[0.65rem] text-accent transition hover:bg-white/75"
+              className="interactive-chip rounded-full border border-accent/20 bg-white/55 px-3 py-1 text-[0.65rem] text-accent transition hover:bg-white/75"
             >
               Clear focus
             </button>
@@ -98,7 +98,7 @@ export function AttackFeedTable({
                 onClick={() =>
                   setExpandedId((current) => (current === record.request_id ? null : record.request_id))
                 }
-                className={`grid w-full grid-cols-[1.2fr_1.45fr_0.9fr_0.9fr_1.35fr] gap-3 border-b px-4 py-4 text-left text-sm text-ink/90 transition hover:bg-white/45 ${
+                className={`table-row grid w-full grid-cols-[1.2fr_1.45fr_0.9fr_0.9fr_1.35fr] gap-3 border-b px-4 py-4 text-left text-sm text-ink/90 transition hover:bg-white/45 ${
                   isHighlighted
                     ? "border-accent/15 bg-accent/[0.07]"
                     : "border-borderGlass/8"
@@ -140,32 +140,32 @@ export function AttackFeedTable({
                     <span className="rounded-full border border-borderGlass/12 bg-white/55 px-3 py-1.5 text-[0.68rem] uppercase tracking-[0.16em] text-muted">
                       Intent {record.intent_source ?? "rule"}
                     </span>
-                    <span className="rounded-full border border-accent/20 bg-accent/10 px-3 py-1.5 text-[0.68rem] uppercase tracking-[0.16em] text-accent">
+                    <span className="interactive-chip rounded-full border border-accent/20 bg-accent/10 px-3 py-1.5 text-[0.68rem] uppercase tracking-[0.16em] text-accent">
                       Family {readableFamily(record.incident_family)}
                     </span>
-                    <span className="rounded-full border border-accent/20 bg-accent/10 px-3 py-1.5 text-[0.68rem] uppercase tracking-[0.16em] text-accent">
+                    <span className="interactive-chip rounded-full border border-accent/20 bg-accent/10 px-3 py-1.5 text-[0.68rem] uppercase tracking-[0.16em] text-accent">
                       Confidence {typeof record.intent_confidence === "number" ? `${Math.round(record.intent_confidence * 100)}%` : "--"}
                     </span>
                     {record.block_explanation ? (
-                      <span className="rounded-full border border-danger/20 bg-danger/10 px-3 py-1.5 text-[0.68rem] uppercase tracking-[0.16em] text-danger">
+                      <span className="interactive-chip rounded-full border border-danger/20 bg-danger/10 px-3 py-1.5 text-[0.68rem] uppercase tracking-[0.16em] text-danger">
                         Explanation ready
                       </span>
                     ) : null}
                     {record.safe_rewrite ? (
-                      <span className="rounded-full border border-success/20 bg-success/10 px-3 py-1.5 text-[0.68rem] uppercase tracking-[0.16em] text-success">
+                      <span className="interactive-chip rounded-full border border-success/20 bg-success/10 px-3 py-1.5 text-[0.68rem] uppercase tracking-[0.16em] text-success">
                         Safe rewrite available
                       </span>
                     ) : null}
                   </div>
 
                   <div className="mt-4 grid gap-4 md:grid-cols-2">
-                    <div className="rounded-[18px] border border-borderGlass/10 bg-white/55 p-4">
+                    <div className="interactive-item rounded-[18px] border border-borderGlass/10 bg-white/55 p-4">
                       <p className="text-[0.68rem] uppercase tracking-[0.2em] text-muted">Explanation</p>
                       <p className="mt-3 text-sm leading-7 text-ink/90">
                         {record.block_explanation || "No block explanation for this event."}
                       </p>
                     </div>
-                    <div className="rounded-[18px] border border-borderGlass/10 bg-white/55 p-4">
+                    <div className="interactive-item rounded-[18px] border border-borderGlass/10 bg-white/55 p-4">
                       <p className="text-[0.68rem] uppercase tracking-[0.2em] text-muted">Safe rewrite</p>
                       <p className="mt-3 text-sm leading-7 text-ink/90">
                         {record.safe_rewrite || "No rewrite suggested for this event."}
@@ -174,11 +174,11 @@ export function AttackFeedTable({
                   </div>
 
                   <div className="mt-4 grid gap-4 md:grid-cols-2">
-                    <div className="rounded-[18px] border border-borderGlass/10 bg-white/55 p-4">
+                    <div className="interactive-item rounded-[18px] border border-borderGlass/10 bg-white/55 p-4">
                       <p className="text-[0.68rem] uppercase tracking-[0.2em] text-muted">Input preview</p>
                       <p className="mt-3 text-sm leading-7 text-ink/90">{record.input_preview}</p>
                     </div>
-                    <div className="rounded-[18px] border border-borderGlass/10 bg-white/55 p-4">
+                    <div className="interactive-item rounded-[18px] border border-borderGlass/10 bg-white/55 p-4">
                       <p className="text-[0.68rem] uppercase tracking-[0.2em] text-muted">Sanitized input</p>
                       <p className="mt-3 text-sm leading-7 text-ink/90">{record.sanitized_input_preview}</p>
                     </div>

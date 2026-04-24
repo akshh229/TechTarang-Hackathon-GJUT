@@ -122,17 +122,7 @@ body {
 }
 
 .ambient-orb {
-  animation: ambient-drift 16s ease-in-out infinite;
   will-change: transform;
-}
-
-.ambient-orb:nth-child(2) {
-  animation-duration: 20s;
-  animation-direction: alternate-reverse;
-}
-
-.ambient-orb:nth-child(3) {
-  animation-duration: 18s;
 }
 
 .reveal-card,

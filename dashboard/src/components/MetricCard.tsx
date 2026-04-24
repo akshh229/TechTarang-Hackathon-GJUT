@@ -23,7 +23,7 @@ export function MetricCard({
           <h3 className="mt-3 font-display text-3xl font-semibold text-ink">{value}</h3>
         </div>
         <div
-          className="grid h-11 w-11 place-items-center rounded-2xl border border-borderGlass/12 text-ink"
+          className="interactive-item grid h-11 w-11 place-items-center rounded-2xl border border-borderGlass/12 text-ink"
           style={{ background: accent }}
         >
           {icon}
