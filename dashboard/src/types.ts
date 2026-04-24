@@ -35,6 +35,10 @@ export interface TelemetryRecord {
   sanitized_response_preview: string;
   block_explanation?: string;
   safe_rewrite?: string;
+  egress_label?: string;
+  egress_recommended_action?: string;
+  egress_reasons?: string[];
+  egress_was_classified?: boolean;
   incident_family: string;
   session_state: SessionState;
   compliance_tags: string[];

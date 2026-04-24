@@ -46,13 +46,13 @@ export function AttackFeedTable({
   const highlightedSet = new Set(highlightedRequestIds);
 
   return (
-    <div className="reveal-card rounded-[28px] border border-borderGlass bg-panel/80 p-5 shadow-glass backdrop-blur-xl">
+    <div className="reveal-card rounded-[28px] border border-borderGlass/14 bg-panel/80 p-5 shadow-glass backdrop-blur-xl">
       <div className="mb-5 flex items-center justify-between">
         <div>
           <p className="text-[0.68rem] uppercase tracking-[0.35em] text-muted">Live Feed</p>
           <h3 className="mt-3 font-display text-2xl font-semibold text-ink">Incoming traffic</h3>
         </div>
-        <div className="rounded-full border border-white/10 px-3 py-1 text-xs uppercase tracking-[0.25em] text-muted">
+        <div className="rounded-full border border-borderGlass/12 bg-white/55 px-3 py-1 text-xs uppercase tracking-[0.25em] text-muted">
           Last {records.length}
         </div>
       </div>
@@ -67,7 +67,7 @@ export function AttackFeedTable({
             <button
               type="button"
               onClick={onClearDrilldown}
-              className="rounded-full border border-accent/20 bg-black/10 px-3 py-1 text-[0.65rem] text-accent transition hover:bg-black/20"
+              className="rounded-full border border-accent/20 bg-white/55 px-3 py-1 text-[0.65rem] text-accent transition hover:bg-white/75"
             >
               Clear focus
             </button>
@@ -75,8 +75,8 @@ export function AttackFeedTable({
         </div>
       ) : null}
 
-      <div className="overflow-hidden rounded-3xl border border-white/8">
-        <div className="grid grid-cols-[1.2fr_1.45fr_0.9fr_0.9fr_1.35fr] gap-3 border-b border-white/8 bg-white/5 px-4 py-3 text-[0.68rem] uppercase tracking-[0.25em] text-muted">
+      <div className="overflow-hidden rounded-3xl border border-borderGlass/10">
+        <div className="grid grid-cols-[1.2fr_1.45fr_0.9fr_0.9fr_1.35fr] gap-3 border-b border-borderGlass/10 bg-panelSoft/75 px-4 py-3 text-[0.68rem] uppercase tracking-[0.25em] text-muted">
           <span>Timestamp</span>
           <span>Session / Intent</span>
           <span>Risk</span>
@@ -98,10 +98,10 @@ export function AttackFeedTable({
                 onClick={() =>
                   setExpandedId((current) => (current === record.request_id ? null : record.request_id))
                 }
-                className={`grid w-full grid-cols-[1.2fr_1.45fr_0.9fr_0.9fr_1.35fr] gap-3 border-b px-4 py-4 text-left text-sm text-ink/90 transition hover:bg-white/[0.03] ${
+                className={`grid w-full grid-cols-[1.2fr_1.45fr_0.9fr_0.9fr_1.35fr] gap-3 border-b px-4 py-4 text-left text-sm text-ink/90 transition hover:bg-white/45 ${
                   isHighlighted
-                    ? "border-accent/15 bg-accent/[0.03]"
-                    : "border-white/6"
+                    ? "border-accent/15 bg-accent/[0.07]"
+                    : "border-borderGlass/8"
                 }`}
               >
                 <div>
@@ -135,9 +135,9 @@ export function AttackFeedTable({
               </button>
 
               {expandedId === record.request_id ? (
-                <div className="border-b border-white/6 bg-[#0b1020]/80 px-4 py-4">
+                <div className="border-b border-borderGlass/8 bg-panelSoft/80 px-4 py-4">
                   <div className="flex flex-wrap gap-2">
-                    <span className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1.5 text-[0.68rem] uppercase tracking-[0.16em] text-muted">
+                    <span className="rounded-full border border-borderGlass/12 bg-white/55 px-3 py-1.5 text-[0.68rem] uppercase tracking-[0.16em] text-muted">
                       Intent {record.intent_source ?? "rule"}
                     </span>
                     <span className="rounded-full border border-accent/20 bg-accent/10 px-3 py-1.5 text-[0.68rem] uppercase tracking-[0.16em] text-accent">
@@ -159,13 +159,13 @@ export function AttackFeedTable({
                   </div>
 
                   <div className="mt-4 grid gap-4 md:grid-cols-2">
-                    <div className="rounded-[18px] border border-white/8 bg-white/[0.03] p-4">
+                    <div className="rounded-[18px] border border-borderGlass/10 bg-white/55 p-4">
                       <p className="text-[0.68rem] uppercase tracking-[0.2em] text-muted">Explanation</p>
                       <p className="mt-3 text-sm leading-7 text-ink/90">
                         {record.block_explanation || "No block explanation for this event."}
                       </p>
                     </div>
-                    <div className="rounded-[18px] border border-white/8 bg-white/[0.03] p-4">
+                    <div className="rounded-[18px] border border-borderGlass/10 bg-white/55 p-4">
                       <p className="text-[0.68rem] uppercase tracking-[0.2em] text-muted">Safe rewrite</p>
                       <p className="mt-3 text-sm leading-7 text-ink/90">
                         {record.safe_rewrite || "No rewrite suggested for this event."}
@@ -174,11 +174,11 @@ export function AttackFeedTable({
                   </div>
 
                   <div className="mt-4 grid gap-4 md:grid-cols-2">
-                    <div className="rounded-[18px] border border-white/8 bg-white/[0.03] p-4">
+                    <div className="rounded-[18px] border border-borderGlass/10 bg-white/55 p-4">
                       <p className="text-[0.68rem] uppercase tracking-[0.2em] text-muted">Input preview</p>
                       <p className="mt-3 text-sm leading-7 text-ink/90">{record.input_preview}</p>
                     </div>
-                    <div className="rounded-[18px] border border-white/8 bg-white/[0.03] p-4">
+                    <div className="rounded-[18px] border border-borderGlass/10 bg-white/55 p-4">
                       <p className="text-[0.68rem] uppercase tracking-[0.2em] text-muted">Sanitized input</p>
                       <p className="mt-3 text-sm leading-7 text-ink/90">{record.sanitized_input_preview}</p>
                     </div>

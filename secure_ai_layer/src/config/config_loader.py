@@ -153,6 +153,29 @@ def validate_config(config: dict) -> tuple[bool, str]:
     if explanation_generation and not isinstance(explanation_generation, dict):
         return False, "Config section 'explanation_generation' must be a mapping."
 
+    egress_classifier = config.get("egress_classifier", {})
+    if egress_classifier and not isinstance(egress_classifier, dict):
+        return False, "Config section 'egress_classifier' must be a mapping."
+    if egress_classifier:
+        risk_threshold = egress_classifier.get("risk_threshold", 20)
+        if not isinstance(risk_threshold, int) or risk_threshold < 0:
+            return False, "Config section 'egress_classifier.risk_threshold' must be a non-negative integer."
+        for list_key in {"block_labels", "review_labels"}:
+            values = egress_classifier.get(list_key, [])
+            if values and not (
+                isinstance(values, list)
+                and all(isinstance(item, str) and item.strip() for item in values)
+            ):
+                return False, f"Config section 'egress_classifier.{list_key}' must be a list of strings."
+
+    dashboard_copilot = config.get("dashboard_copilot", {})
+    if dashboard_copilot and not isinstance(dashboard_copilot, dict):
+        return False, "Config section 'dashboard_copilot' must be a mapping."
+
+    adaptive_defense_recommender = config.get("adaptive_defense_recommender", {})
+    if adaptive_defense_recommender and not isinstance(adaptive_defense_recommender, dict):
+        return False, "Config section 'adaptive_defense_recommender' must be a mapping."
+
     return True, ""
 
 def load_yaml_config(filepath: str) -> dict:

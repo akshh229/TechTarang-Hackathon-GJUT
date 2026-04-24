@@ -14,7 +14,7 @@ export function SimulatorPanel({
   onTrigger,
 }: SimulatorPanelProps) {
   return (
-    <div className="reveal-card rounded-[28px] border border-borderGlass bg-panel/80 p-5 shadow-glass backdrop-blur-xl">
+    <div className="reveal-card rounded-[28px] border border-borderGlass/14 bg-panel/80 p-5 shadow-glass backdrop-blur-xl">
       <div className="mb-5 flex items-start justify-between">
         <div>
           <p className="text-[0.68rem] uppercase tracking-[0.35em] text-muted">Red-Team Console</p>
@@ -34,13 +34,13 @@ export function SimulatorPanel({
               type="button"
               onClick={() => void onTrigger(scenario.id)}
               disabled={active}
-              className="group flex w-full items-center justify-between rounded-[22px] border border-white/8 bg-white/[0.03] px-4 py-4 text-left transition duration-300 hover:border-accent/30 hover:bg-white/[0.06] disabled:cursor-wait disabled:opacity-70"
+              className="group flex w-full items-center justify-between rounded-[22px] border border-borderGlass/10 bg-panelSoft/70 px-4 py-4 text-left transition duration-300 hover:border-accent/30 hover:bg-panelSoft disabled:cursor-wait disabled:opacity-70"
             >
               <div>
                 <p className="font-display text-lg font-medium text-ink">{scenario.title}</p>
                 <p className="mt-1 text-sm leading-6 text-muted">{scenario.description}</p>
               </div>
-              <span className="inline-flex items-center gap-2 rounded-full border border-white/10 px-3 py-2 text-xs uppercase tracking-[0.25em] text-ink">
+              <span className="inline-flex items-center gap-2 rounded-full border border-borderGlass/12 bg-white/55 px-3 py-2 text-xs uppercase tracking-[0.25em] text-ink">
                 <Play size={14} />
                 {active ? "Running" : "Launch"}
               </span>

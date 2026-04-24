@@ -48,7 +48,11 @@ class AuditLogger:
                     intent_confidence REAL,
                     block_explanation TEXT,
                     operator_reason TEXT,
-                    safe_rewrite TEXT
+                    safe_rewrite TEXT,
+                    egress_label TEXT,
+                    egress_recommended_action TEXT,
+                    egress_reasons TEXT,
+                    egress_was_classified INTEGER
                 )
             """)
             self._ensure_columns(conn)
@@ -72,6 +76,10 @@ class AuditLogger:
             "block_explanation": "TEXT",
             "operator_reason": "TEXT",
             "safe_rewrite": "TEXT",
+            "egress_label": "TEXT",
+            "egress_recommended_action": "TEXT",
+            "egress_reasons": "TEXT",
+            "egress_was_classified": "INTEGER",
         }
 
         existing_columns = {
@@ -96,8 +104,9 @@ class AuditLogger:
                     score_breakdown, sql_intent_token, provider, action_taken,
                     session_state, pii_redactions, response_hash,
                     sanitized_response_preview, compliance_tags, latency_ms,
-                    intent_source, intent_confidence, block_explanation, operator_reason, safe_rewrite
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    intent_source, intent_confidence, block_explanation, operator_reason, safe_rewrite,
+                    egress_label, egress_recommended_action, egress_reasons, egress_was_classified
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 request_id,
                 record.get("timestamp", datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")),
@@ -123,6 +132,10 @@ class AuditLogger:
                 record.get("block_explanation", ""),
                 record.get("operator_reason", ""),
                 record.get("safe_rewrite", ""),
+                record.get("egress_label", "PASS"),
+                record.get("egress_recommended_action", "allow"),
+                json.dumps(record.get("egress_reasons", [])),
+                1 if record.get("egress_was_classified", False) else 0,
             ))
             conn.commit()
         finally:
@@ -144,6 +157,7 @@ class AuditLogger:
             "session_state",
             "pii_redactions",
             "compliance_tags",
+            "egress_reasons",
         }
         parsed_records: List[Dict[str, Any]] = []
 

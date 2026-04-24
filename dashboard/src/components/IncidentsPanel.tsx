@@ -29,13 +29,13 @@ export function IncidentsPanel({
   onSelectIncident,
 }: IncidentsPanelProps) {
   return (
-    <div className="reveal-card rounded-[28px] border border-borderGlass bg-panel/80 p-5 shadow-glass backdrop-blur-xl">
+    <div className="reveal-card rounded-[28px] border border-borderGlass/14 bg-panel/80 p-5 shadow-glass backdrop-blur-xl">
       <div className="mb-5 flex items-center justify-between">
         <div>
           <p className="text-[0.68rem] uppercase tracking-[0.35em] text-muted">Incident Clusters</p>
           <h3 className="mt-3 font-display text-2xl font-semibold text-ink">Active campaigns</h3>
         </div>
-        <div className="rounded-full border border-white/10 px-3 py-1 text-xs uppercase tracking-[0.25em] text-muted">
+        <div className="rounded-full border border-borderGlass/12 bg-white/55 px-3 py-1 text-xs uppercase tracking-[0.25em] text-muted">
           {incidents.length} clusters
         </div>
       </div>
@@ -47,7 +47,7 @@ export function IncidentsPanel({
           className={`rounded-full border px-3 py-1.5 text-[0.68rem] uppercase tracking-[0.18em] transition ${
             selectedFamily === null
               ? "border-accent/30 bg-accent/10 text-accent"
-              : "border-white/10 bg-white/[0.03] text-muted hover:bg-white/[0.08] hover:text-ink"
+              : "border-borderGlass/12 bg-white/55 text-muted hover:bg-white/75 hover:text-ink"
           }`}
         >
           All families
@@ -60,7 +60,7 @@ export function IncidentsPanel({
             className={`rounded-full border px-3 py-1.5 text-[0.68rem] uppercase tracking-[0.18em] transition ${
               selectedFamily === family
                 ? "border-accent/30 bg-accent/10 text-accent"
-                : "border-white/10 bg-white/[0.03] text-muted hover:bg-white/[0.08] hover:text-ink"
+                : "border-borderGlass/12 bg-white/55 text-muted hover:bg-white/75 hover:text-ink"
             }`}
           >
             {readableFamily(family)}
@@ -70,7 +70,7 @@ export function IncidentsPanel({
 
       <div className="space-y-3">
         {incidents.length === 0 ? (
-          <div className="rounded-[22px] border border-white/8 bg-white/[0.04] px-4 py-6 text-sm text-muted">
+          <div className="rounded-[22px] border border-borderGlass/10 bg-panelSoft/70 px-4 py-6 text-sm text-muted">
             {selectedFamily
               ? `No incidents match ${readableFamily(selectedFamily)} in the current window.`
               : "No flagged or blocked incident clusters yet. Run a few scenarios to populate this view."}
@@ -84,7 +84,7 @@ export function IncidentsPanel({
               className={`w-full rounded-[22px] border p-4 text-left transition ${
                 selectedIncidentId === incident.incident_id
                   ? "border-accent/30 bg-accent/10"
-                  : "border-white/8 bg-white/[0.04] hover:bg-white/[0.07]"
+                  : "border-borderGlass/10 bg-panelSoft/70 hover:bg-panelSoft"
               }`}
             >
               <div className="flex flex-wrap items-start justify-between gap-3">
@@ -100,7 +100,7 @@ export function IncidentsPanel({
               </div>
 
               <div className="mt-4 flex flex-wrap gap-2">
-                <span className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1.5 text-[0.68rem] uppercase tracking-[0.16em] text-muted">
+                <span className="rounded-full border border-borderGlass/12 bg-white/55 px-3 py-1.5 text-[0.68rem] uppercase tracking-[0.16em] text-muted">
                   {incident.family}
                 </span>
                 {incident.top_signals.map((signal) => (
@@ -114,13 +114,13 @@ export function IncidentsPanel({
               </div>
 
               <div className="mt-4 grid gap-4 md:grid-cols-2">
-                <div className="rounded-[18px] border border-white/8 bg-black/10 p-4">
+                <div className="rounded-[18px] border border-borderGlass/10 bg-white/55 p-4">
                   <p className="text-[0.68rem] uppercase tracking-[0.2em] text-muted">Latest explanation</p>
                   <p className="mt-3 text-sm leading-7 text-ink/90">
                     {incident.latest_explanation || "No explanation stored for this cluster."}
                   </p>
                 </div>
-                <div className="rounded-[18px] border border-white/8 bg-black/10 p-4">
+                <div className="rounded-[18px] border border-borderGlass/10 bg-white/55 p-4">
                   <p className="text-[0.68rem] uppercase tracking-[0.2em] text-muted">Sample payload</p>
                   <p className="mt-3 text-sm leading-7 text-ink/90">{incident.sample_input}</p>
                 </div>

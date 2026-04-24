@@ -159,13 +159,17 @@ def format_record_for_dashboard(record: Dict[str, Any]) -> Dict[str, Any]:
         "score_breakdown": record.get("score_breakdown", {}),
         "sql_intent_token": record.get("sql_intent_token", "UNKNOWN_INTENT"),
         "intent_source": record.get("intent_source", "rule"),
-        "intent_confidence": float(record.get("intent_confidence", 0)),
+        "intent_confidence": float(record.get("intent_confidence") or 0.0),
         "pii_redactions": record.get("pii_redactions", {}),
         "input_preview": record.get("input_preview", ""),
         "sanitized_input_preview": record.get("sanitized_input_preview", ""),
         "sanitized_response_preview": record.get("sanitized_response_preview", ""),
         "block_explanation": record.get("block_explanation", ""),
         "safe_rewrite": record.get("safe_rewrite", ""),
+        "egress_label": record.get("egress_label", "PASS"),
+        "egress_recommended_action": record.get("egress_recommended_action", "allow"),
+        "egress_reasons": record.get("egress_reasons", []),
+        "egress_was_classified": bool(record.get("egress_was_classified", False)),
         "incident_family": infer_incident_family(record),
         "session_state": {
             "suspicious": session_state.get("suspicious", False),
@@ -347,6 +351,12 @@ async def process_interaction(
     sanitized_response = ""
     pii_stats = {"pan": 0, "aadhaar": 0, "email": 0, "phone": 0}
     explanation_payload = None
+    egress_result = {
+        "label": "PASS",
+        "recommended_action": "allow",
+        "risk_reasons": [],
+        "was_classified": False,
+    }
 
     if assessment["risk_level"] != "RED":
         raw_response = await adapter.complete(
@@ -356,6 +366,47 @@ async def process_interaction(
             temperature=0.2,
         )
         sanitized_response, pii_stats = redactor.redact(raw_response)
+
+        egress_config = config.get("egress_classifier", {})
+        if egress_config.get("enabled", True):
+            egress_classification = await egress_classifier.classify(
+                sanitized_response,
+                threat_score=assessment["threat_score"],
+                risk_level=assessment["risk_level"],
+                provider_override=provider_override,
+                model=egress_config.get("model") or config.get("llm", {}).get("model"),
+                risk_threshold=int(egress_config.get("risk_threshold", 20)),
+            )
+            egress_result = {
+                "label": egress_classification.label,
+                "recommended_action": egress_classification.recommended_action,
+                "risk_reasons": egress_classification.risk_reasons,
+                "was_classified": egress_classification.was_classified,
+            }
+
+            if egress_classification.redact_spans:
+                sanitized_response = egress_classifier.apply_redactions(
+                    sanitized_response,
+                    egress_classification.redact_spans,
+                )
+
+            block_labels = set(egress_config.get("block_labels", ["SECRET_LIKE", "POLICY_VIOLATING"]))
+            review_labels = set(egress_config.get("review_labels", ["NEEDS_REVIEW"]))
+
+            if (
+                egress_classification.recommended_action == "block"
+                or egress_classification.label in block_labels
+            ):
+                sanitized_response = (
+                    "Response withheld by SUDARSHAN egress protection due to potential sensitive data exposure."
+                )
+            elif (
+                egress_classification.recommended_action == "human_review"
+                or egress_classification.label in review_labels
+            ):
+                sanitized_response = (
+                    "Response held for operator review because the egress safety check could not fully clear it."
+                )
     else:
         explanation_config = config.get("explanation_generation", {})
         if explanation_config.get("enabled", True):
@@ -421,6 +472,10 @@ async def process_interaction(
             "block_explanation": explanation_payload.user_reason if explanation_payload else "",
             "operator_reason": explanation_payload.operator_reason if explanation_payload else "",
             "safe_rewrite": explanation_payload.safe_rewrite if explanation_payload else "",
+            "egress_label": egress_result["label"],
+            "egress_recommended_action": egress_result["recommended_action"],
+            "egress_reasons": egress_result["risk_reasons"],
+            "egress_was_classified": egress_result["was_classified"],
             "compliance_tags": compliance_tags_for_record(
                 pii_stats,
                 assessment["risk_level"],
@@ -466,6 +521,10 @@ async def process_interaction(
             "intent_confidence": intent_result["intent_confidence"],
             "extracted_entities": intent_result["extracted_entities"],
             "pii_redacted": sum(pii_stats.values()),
+            "egress_label": egress_result["label"],
+            "egress_recommended_action": egress_result["recommended_action"],
+            "egress_reasons": egress_result["risk_reasons"],
+            "egress_was_classified": egress_result["was_classified"],
             "session_state": session_state,
         },
     }

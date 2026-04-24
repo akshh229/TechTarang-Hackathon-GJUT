@@ -10,13 +10,13 @@ export function ThreatGauge({ score }: ThreatGaugeProps) {
     clampedScore >= 60 ? "var(--danger)" : clampedScore >= 30 ? "var(--warning)" : "var(--success)";
 
   return (
-    <div className="reveal-card rounded-[28px] border border-borderGlass bg-panel/80 p-5 shadow-glass backdrop-blur-xl">
+    <div className="reveal-card rounded-[28px] border border-borderGlass/14 bg-panel/80 p-5 shadow-glass backdrop-blur-xl">
       <div className="mb-4 flex items-center justify-between">
         <div>
           <p className="text-[0.68rem] uppercase tracking-[0.35em] text-muted">Threat Gauge</p>
           <h3 className="mt-3 font-display text-2xl font-semibold text-ink">Composite score</h3>
         </div>
-        <div className="rounded-full border border-white/10 px-3 py-1 text-xs uppercase tracking-[0.25em] text-muted">
+        <div className="rounded-full border border-borderGlass/12 bg-white/55 px-3 py-1 text-xs uppercase tracking-[0.25em] text-muted">
           0-100
         </div>
       </div>

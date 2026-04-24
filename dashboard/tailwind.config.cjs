@@ -16,10 +16,10 @@ module.exports = {
         muted: "rgb(var(--muted) / <alpha-value>)",
       },
       boxShadow: {
-        glass: "0 24px 80px rgba(5, 7, 22, 0.42)",
+        glass: "0 24px 80px rgba(110, 76, 43, 0.12)",
       },
       backgroundImage: {
-        grid: "linear-gradient(rgba(122, 167, 255, 0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(122, 167, 255, 0.08) 1px, transparent 1px)",
+        grid: "linear-gradient(rgba(136, 104, 76, 0.09) 1px, transparent 1px), linear-gradient(90deg, rgba(136, 104, 76, 0.09) 1px, transparent 1px)",
       },
       fontFamily: {
         display: ["'Space Grotesk'", "system-ui", "sans-serif"],

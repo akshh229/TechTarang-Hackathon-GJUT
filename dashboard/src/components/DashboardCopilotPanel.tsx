@@ -35,7 +35,7 @@ export function DashboardCopilotPanel({
       : "all recent incidents";
 
   return (
-    <div className="reveal-card rounded-[28px] border border-borderGlass bg-panel/80 p-5 shadow-glass backdrop-blur-xl">
+    <div className="reveal-card rounded-[28px] border border-borderGlass/14 bg-panel/80 p-5 shadow-glass backdrop-blur-xl">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="max-w-2xl">
           <p className="text-[0.68rem] uppercase tracking-[0.35em] text-muted">Dashboard Copilot</p>
@@ -62,14 +62,14 @@ export function DashboardCopilotPanel({
       </div>
 
       <div className="mt-5 grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
-        <div className="rounded-[22px] border border-white/8 bg-white/[0.04] p-4">
+        <div className="rounded-[22px] border border-borderGlass/10 bg-panelSoft/70 p-4">
           <div className="flex flex-wrap gap-2">
             {starterQuestions.map((starter) => (
               <button
                 key={starter}
                 type="button"
                 onClick={() => setQuestion(starter)}
-                className="rounded-full border border-white/10 bg-white/[0.03] px-3 py-1.5 text-xs uppercase tracking-[0.18em] text-muted transition hover:bg-white/[0.08] hover:text-ink"
+                className="rounded-full border border-borderGlass/12 bg-white/55 px-3 py-1.5 text-xs uppercase tracking-[0.18em] text-muted transition hover:bg-white/75 hover:text-ink"
               >
                 {starter}
               </button>
@@ -83,7 +83,7 @@ export function DashboardCopilotPanel({
             value={question}
             onChange={(event) => setQuestion(event.target.value)}
             rows={3}
-            className="mt-3 w-full resize-none rounded-[20px] border border-white/10 bg-[#090d17] px-4 py-3 text-sm leading-7 text-ink outline-none transition focus:border-accent/50"
+            className="mt-3 w-full resize-none rounded-[20px] border border-borderGlass/12 bg-white/70 px-4 py-3 text-sm leading-7 text-ink outline-none transition focus:border-accent/50"
             placeholder="Ask about spikes, sessions, tool execution, or top risky signals."
           />
 
@@ -102,7 +102,7 @@ export function DashboardCopilotPanel({
           </div>
         </div>
 
-        <div className="rounded-[22px] border border-white/8 bg-[#0b1020]/70 p-4">
+        <div className="rounded-[22px] border border-borderGlass/10 bg-white/60 p-4">
           <p className="text-[0.68rem] uppercase tracking-[0.24em] text-muted">Response</p>
           {response ? (
             <>
@@ -112,7 +112,7 @@ export function DashboardCopilotPanel({
                 {response.supporting_metrics.map((metric) => (
                   <span
                     key={metric.label}
-                    className="rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[0.68rem] uppercase tracking-[0.18em] text-muted"
+                    className="rounded-full border border-borderGlass/12 bg-panelSoft/70 px-3 py-1.5 text-[0.68rem] uppercase tracking-[0.18em] text-muted"
                   >
                     {metric.label}: {metric.value}
                   </span>
@@ -126,7 +126,7 @@ export function DashboardCopilotPanel({
                     {response.cited_incidents.map((incident) => (
                       <div
                         key={incident.incident_id}
-                        className="rounded-[18px] border border-white/8 bg-white/[0.03] px-3 py-3 text-sm text-ink/90"
+                        className="rounded-[18px] border border-borderGlass/10 bg-panelSoft/65 px-3 py-3 text-sm text-ink/90"
                       >
                         {incident.label}
                       </div>
@@ -140,7 +140,7 @@ export function DashboardCopilotPanel({
                     {response.cited_records.map((record) => (
                       <div
                         key={record.request_id}
-                        className="rounded-[18px] border border-white/8 bg-white/[0.03] px-3 py-3 text-sm text-ink/90"
+                        className="rounded-[18px] border border-borderGlass/10 bg-panelSoft/65 px-3 py-3 text-sm text-ink/90"
                       >
                         {record.request_id.slice(0, 8)} · {record.action_taken} · {record.risk_level}
                       </div>
