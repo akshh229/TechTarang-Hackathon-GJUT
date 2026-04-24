@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.node.json && vite build",
+    "build": "npx tsc --noEmit -p tsconfig.app.json && npx tsc --noEmit -p tsconfig.node.json && vite build",
     "preview": "vite preview"
   },
   "dependencies": {
