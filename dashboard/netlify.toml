@@ -1,9 +1,9 @@
 [build]
   base = "dashboard"
-  command = "chmod -R +x node_modules/.bin && npm run build"
+  command = "chmod -R +x node_modules/.bin && npm run build && mv dist/index.html dist/dashboard.html && cp -r ../landing/* dist/"
   publish = "dist"
 
 [[redirects]]
-  from = "/*"
-  to = "/index.html"
+  from = "/dashboard"
+  to = "/dashboard.html"
   status = 200
