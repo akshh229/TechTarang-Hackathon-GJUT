@@ -11,13 +11,14 @@ from pathlib import Path
 from statistics import median
 from typing import Any, Dict, List, Optional
 
-from fastapi import FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from src.adaptive_defense.compiler import AttackReportCompiler
+from src.adaptive_defense.recommender import PolicyRecommender
 from src.adapters.factory import get_provider_adapter
 from src.ai.explanation_generator import ExplanationGenerator, fallback_block_explanation
 from src.audit.logger import AuditLogger
@@ -26,6 +27,7 @@ from src.config.config_loader import get_policy_config, init_config_watcher
 from src.dashboard.broadcaster import EventBroadcaster
 from src.dashboard.copilot import DashboardCopilot
 from src.dashboard.incidents import build_incidents, get_incident_records, infer_incident_family
+from src.egress.classifier import EgressClassifier
 from src.egress.redactor import EgressRedactor
 from src.ingress.sanitizer import IngressSanitizer
 from src.security.middleware import (
@@ -51,6 +53,8 @@ compliance_reporter = ComplianceReporter()
 attack_report_compiler = AttackReportCompiler()
 explanation_generator = ExplanationGenerator()
 dashboard_copilot = DashboardCopilot()
+policy_recommender = PolicyRecommender()
+egress_classifier = EgressClassifier()
 
 
 DEMO_SCENARIOS: Dict[str, Dict[str, str]] = {
@@ -583,6 +587,13 @@ class DashboardCopilotRequest(BaseModel):
     provider: Optional[str] = None
 
 
+class RecommendPolicyRequest(BaseModel):
+    min_events: int = Field(default=5, ge=1, le=200)
+    time_window_hours: Optional[int] = Field(default=None, ge=1, le=720)
+    include_false_positive_review: bool = True
+    provider: Optional[str] = None
+
+
 @app.get("/")
 def health_check() -> Dict[str, Any]:
     config = get_policy_config()
@@ -761,6 +772,86 @@ def simulate_adaptive_defense_endpoint(payload: AdaptiveDefenseSimulationRequest
     return simulate_adaptive_defense(payload.message, payload.session_id)
 
 
+@app.post("/adaptive-defense/recommend")
+async def recommend_policy(payload: RecommendPolicyRequest) -> Dict[str, Any]:
+    """
+    Analyse recent blocked/flagged telemetry and propose new policy rules.
+    Recommendations are suggestions only – no changes are applied automatically.
+    """
+    logger = get_audit_logger()
+    records = logger.get_records(limit=500)
+    config = get_policy_config()
+    model = config.get("adaptive_defense_recommender", {}).get("model") or config.get("llm", {}).get("model")
+    result = await policy_recommender.recommend(
+        records,
+        min_events=payload.min_events,
+        time_window_hours=payload.time_window_hours,
+        include_false_positive_review=payload.include_false_positive_review,
+        provider_override=payload.provider,
+        model=model,
+    )
+    return result.model_dump()
+
+
+@app.post("/v1/analyze/image")
+async def analyze_image(request: Request) -> Dict[str, Any]:
+    """
+    Accepts an image upload (multipart or raw bytes), runs OCR + threat scoring,
+    and returns a structured risk analysis payload.
+    """
+    from fastapi import UploadFile, File
+    body = await request.body()
+    if not body:
+        raise HTTPException(status_code=400, detail="Empty image body.")
+
+    risk_level, threat_score, triggered_signals = sanitizer.check_image(body)
+    action_taken = "BLOCK" if risk_level == "RED" else ("FLAG" if risk_level == "AMBER" else "PASS")
+
+    assessment = {
+        "risk_level": risk_level,
+        "threat_score": threat_score,
+        "action_taken": action_taken,
+        "signals": triggered_signals,
+        "detected_families": [],
+    }
+
+    return {
+        "source_type": "image",
+        "file_size_bytes": len(body),
+        "risk_level": risk_level,
+        "threat_score": threat_score,
+        "action_taken": action_taken,
+        "triggered_signals": triggered_signals,
+        "safe": risk_level == "GREEN",
+        "timestamp": utc_now_iso(),
+    }
+
+
+@app.post("/v1/analyze/pdf")
+async def analyze_pdf(request: Request) -> Dict[str, Any]:
+    """
+    Accepts a PDF upload (raw bytes), extracts text, runs threat scoring,
+    and returns a structured risk analysis payload.
+    """
+    body = await request.body()
+    if not body:
+        raise HTTPException(status_code=400, detail="Empty PDF body.")
+
+    risk_level, threat_score, triggered_signals = sanitizer.check_pdf(body)
+    action_taken = "BLOCK" if risk_level == "RED" else ("FLAG" if risk_level == "AMBER" else "PASS")
+
+    return {
+        "source_type": "pdf",
+        "file_size_bytes": len(body),
+        "risk_level": risk_level,
+        "threat_score": threat_score,
+        "action_taken": action_taken,
+        "triggered_signals": triggered_signals,
+        "safe": risk_level == "GREEN",
+        "timestamp": utc_now_iso(),
+    }
+
+
 @app.get("/ai-report")
 async def generate_ai_report() -> Dict[str, Any]:
     """
@@ -795,6 +886,111 @@ async def generate_ai_report() -> Dict[str, Any]:
         "metrics_analyzed": summary["totals"],
         "timestamp": utc_now_iso()
     }
+
+
+@app.get("/ai-report/security-summary")
+async def ai_report_security_summary() -> Dict[str, Any]:
+    """Executive security summary with top attack families and mitigations."""
+    logger = get_audit_logger()
+    records = logger.get_records(limit=300)
+    summary = build_dashboard_summary(records)
+    _, adapter = get_provider_adapter(None)
+    prompt = (
+        "You are a senior threat analyst. Write a concise executive security summary based on this telemetry:\n"
+        f"Blocked: {summary['totals']['blocked_requests']} | "
+        f"Flagged: {summary['totals']['flagged_requests']} | "
+        f"Clean: {summary['totals']['clean_requests']} | "
+        f"Suspicious sessions: {summary['totals']['suspicious_sessions']}\n"
+        f"Top attack patterns: {summary['top_patterns']}\n"
+        f"Risk distribution: {summary['risk_distribution']}\n"
+        "Provide: (1) Threat landscape, (2) Top active attack families, "
+        "(3) Recommended immediate mitigations. Be concise and operator-facing."
+    )
+    try:
+        report_text = await adapter.complete("You are a Cybersecurity Expert AI.", prompt, temperature=0.2)
+    except Exception as exc:
+        report_text = f"[Fallback] Security summary generation failed: {exc}"
+    return {
+        "report_type": "security_summary",
+        "status": "success",
+        "report_text": report_text,
+        "metrics_snapshot": summary["totals"],
+        "top_patterns": summary["top_patterns"],
+        "risk_distribution": summary["risk_distribution"],
+        "timestamp": utc_now_iso(),
+    }
+
+
+@app.get("/ai-report/compliance-summary")
+async def ai_report_compliance_summary() -> Dict[str, Any]:
+    """AI-generated compliance narrative aligned to DPDP / ISO 27001 frameworks."""
+    logger = get_audit_logger()
+    records = logger.get_records(limit=500)
+    compliance_report = compliance_reporter.build_report(records, None, None)
+    summary = build_dashboard_summary(records)
+    _, adapter = get_provider_adapter(None)
+    prompt = (
+        "You are a compliance officer AI. Write a compliance narrative for the following firewall telemetry:\n"
+        f"Total requests analysed: {summary['totals']['total_requests']}\n"
+        f"Blocked: {summary['totals']['blocked_requests']} | Flagged: {summary['totals']['flagged_requests']}\n"
+        f"PII redacted: {summary['pii_totals']}\n"
+        "Framework: India DPDP Act, ISO 27001 Annex A.\n"
+        "Provide: (1) Compliance posture assessment, (2) Data minimisation observations, "
+        "(3) Recommendations to close any compliance gaps. Use formal language."
+    )
+    try:
+        report_text = await adapter.complete("You are a Compliance Expert AI.", prompt, temperature=0.15)
+    except Exception as exc:
+        report_text = f"[Fallback] Compliance narrative generation failed: {exc}"
+    return {
+        "report_type": "compliance_summary",
+        "status": "success",
+        "report_text": report_text,
+        "pii_totals": summary["pii_totals"],
+        "compliance_data": compliance_report,
+        "timestamp": utc_now_iso(),
+    }
+
+
+@app.get("/ai-report/incident-summary")
+async def ai_report_incident_summary() -> Dict[str, Any]:
+    """AI-generated incident summary clustering active attack campaigns."""
+    logger = get_audit_logger()
+    records = logger.get_records(limit=400)
+    incidents = build_incidents(records, limit=10)
+    summary = build_dashboard_summary(records)
+    _, adapter = get_provider_adapter(None)
+    incident_digest = [
+        {
+            "label": inc.get("label"),
+            "family": inc.get("family"),
+            "event_count": inc.get("event_count"),
+            "severity_score": inc.get("severity_score"),
+            "first_seen": inc.get("first_seen"),
+            "last_seen": inc.get("last_seen"),
+        }
+        for inc in incidents
+    ]
+    prompt = (
+        "You are a threat hunter AI. Summarise the following active attack incidents:\n"
+        f"{incident_digest}\n"
+        f"Total events in window: {summary['totals']['total_requests']}\n"
+        "Provide: (1) Incident-by-incident narrative, (2) Campaign attribution hypothesis, "
+        "(3) Recommended next actions for each incident. Be specific and concise."
+    )
+    try:
+        report_text = await adapter.complete("You are a Threat Hunter AI.", prompt, temperature=0.2)
+    except Exception as exc:
+        report_text = f"[Fallback] Incident summary generation failed: {exc}"
+    return {
+        "report_type": "incident_summary",
+        "status": "success",
+        "report_text": report_text,
+        "active_incidents": incidents,
+        "incident_count": len(incidents),
+        "timestamp": utc_now_iso(),
+    }
+
 
 
 frontend_dir = BASE_DIR / "frontend"

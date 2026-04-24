@@ -12,6 +12,7 @@ BASE_POLICY: Dict[str, Any] = {
     "intent_classifier": {"enabled": True, "model": "gpt-4.1-mini", "min_confidence": 0.72},
     "explanation_generation": {"enabled": True, "model": "gpt-4.1-mini"},
     "dashboard": {"max_live_events": 50, "latency_threshold_ms": 150},
+    "dashboard_copilot": {"enabled": True, "model": "gpt-4.1-mini"},
     "rate_limit": {
         "enabled": True,
         "window_seconds": 60,

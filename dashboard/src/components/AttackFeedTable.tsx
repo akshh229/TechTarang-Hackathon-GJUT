@@ -90,7 +90,7 @@ export function AttackFeedTable({
             </div>
           ) : null}
           {records.map((record) => {
-            const isHighlighted = highlightedSet.size === 0 || highlightedSet.has(record.request_id);
+            const isHighlighted = highlightedSet.size > 0 && highlightedSet.has(record.request_id);
             return (
             <Fragment key={record.request_id}>
               <button

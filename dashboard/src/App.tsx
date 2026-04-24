@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
   Cpu,
@@ -27,11 +27,14 @@ import {
 
 import { AdaptiveDefensePanel } from "./components/AdaptiveDefensePanel";
 import { AttackFeedTable } from "./components/AttackFeedTable";
+import { DashboardCopilotPanel } from "./components/DashboardCopilotPanel";
 import { IncidentsPanel } from "./components/IncidentsPanel";
 import { MetricCard } from "./components/MetricCard";
 import { SimulatorPanel } from "./components/SimulatorPanel";
 import { ThreatGauge } from "./components/ThreatGauge";
 import { useSecurityDashboard } from "./hooks/useSecurityDashboard";
+import { getIncidentRecords } from "./lib/api";
+import type { Incident, TelemetryRecord } from "./types";
 
 function formatShortTimestamp(timestamp: string) {
   return new Date(timestamp).toLocaleTimeString([], {
@@ -50,6 +53,7 @@ function formatIntentConfidence(confidence?: number) {
 
 export default function App() {
   const dashboardRef = useRef<HTMLDivElement | null>(null);
+  const feedSectionRef = useRef<HTMLDivElement | null>(null);
   const {
     summary,
     incidents,
@@ -61,12 +65,19 @@ export default function App() {
     adaptiveSimulation,
     adaptiveInput,
     adaptiveSimulating,
+    copilotResponse,
+    copilotLoading,
     highlights,
     refresh,
     triggerSimulation,
     runAdaptiveSimulation,
+    runCopilotQuery,
     setAdaptiveInput,
   } = useSecurityDashboard();
+  const [selectedFamily, setSelectedFamily] = useState<string | null>(null);
+  const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null);
+  const [incidentRecords, setIncidentRecords] = useState<TelemetryRecord[]>([]);
+  const [incidentLoading, setIncidentLoading] = useState(false);
 
   useEffect(() => {
     if (!dashboardRef.current) {
@@ -134,6 +145,53 @@ export default function App() {
     [summary?.pii_totals],
   );
 
+  const familyOptions = useMemo(
+    () => Array.from(new Set(incidents.map((incident) => incident.family))).sort(),
+    [incidents],
+  );
+
+  const filteredIncidents = useMemo(
+    () =>
+      selectedFamily
+        ? incidents.filter((incident) => incident.family === selectedFamily)
+        : incidents,
+    [incidents, selectedFamily],
+  );
+
+  const filteredRecentRecords = useMemo(
+    () =>
+      summary?.recent_records.filter(
+        (record) => !selectedFamily || record.incident_family === selectedFamily,
+      ) ?? [],
+    [selectedFamily, summary?.recent_records],
+  );
+
+  useEffect(() => {
+    if (!selectedIncident) {
+      return;
+    }
+
+    const refreshedIncident = incidents.find(
+      (incident) => incident.incident_id === selectedIncident.incident_id,
+    );
+
+    if (!refreshedIncident) {
+      setSelectedIncident(null);
+      setIncidentRecords([]);
+      return;
+    }
+
+    if (selectedFamily && refreshedIncident.family !== selectedFamily) {
+      setSelectedIncident(null);
+      setIncidentRecords([]);
+      return;
+    }
+
+    setSelectedIncident(refreshedIncident);
+  }, [incidents, selectedFamily, selectedIncident]);
+
+  const visibleRecords = selectedIncident ? incidentRecords : filteredRecentRecords;
+
   if (loading && !summary) {
     return (
       <main className="min-h-screen bg-[#05070f] px-6 py-10 text-ink">
@@ -169,6 +227,36 @@ export default function App() {
   }
 
   const latestRecord = summary.recent_records[0];
+
+  async function handleIncidentSelection(incident: Incident) {
+    if (selectedIncident?.incident_id === incident.incident_id) {
+      setSelectedIncident(null);
+      setIncidentRecords([]);
+      return;
+    }
+
+    setSelectedFamily(incident.family);
+    setSelectedIncident(incident);
+    setIncidentLoading(true);
+
+    try {
+      const response = await getIncidentRecords(incident.incident_id);
+      setIncidentRecords(response.records);
+      window.requestAnimationFrame(() => {
+        feedSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    } finally {
+      setIncidentLoading(false);
+    }
+  }
+
+  function handleFamilyChange(family: string | null) {
+    setSelectedFamily(family);
+    if (!family || selectedIncident?.family !== family) {
+      setSelectedIncident(null);
+      setIncidentRecords([]);
+    }
+  }
 
   return (
     <main
@@ -446,11 +534,47 @@ export default function App() {
           </div>
         </section>
 
-        <section className="grid gap-5 xl:grid-cols-[1.15fr_0.85fr]">
-          <AttackFeedTable records={summary.recent_records} />
+        <DashboardCopilotPanel
+          loading={copilotLoading}
+          response={copilotResponse}
+          selectedFamily={selectedFamily}
+          selectedIncident={selectedIncident}
+          onSubmit={(question) =>
+            runCopilotQuery(question, {
+              family: selectedFamily,
+              incidentId: selectedIncident?.incident_id ?? null,
+            })
+          }
+        />
+
+        <section
+          ref={feedSectionRef}
+          className="grid gap-5 xl:grid-cols-[1.15fr_0.85fr]"
+        >
+          <AttackFeedTable
+            records={incidentLoading ? [] : visibleRecords}
+            activeIncidentLabel={selectedIncident?.label ?? null}
+            selectedFamily={selectedFamily}
+            highlightedRequestIds={selectedIncident?.related_request_ids ?? []}
+            onClearDrilldown={
+              selectedIncident
+                ? () => {
+                    setSelectedIncident(null);
+                    setIncidentRecords([]);
+                  }
+                : undefined
+            }
+          />
 
           <div className="grid gap-5">
-            <IncidentsPanel incidents={incidents} />
+            <IncidentsPanel
+              incidents={filteredIncidents}
+              familyOptions={familyOptions}
+              selectedFamily={selectedFamily}
+              selectedIncidentId={selectedIncident?.incident_id ?? null}
+              onFamilyChange={handleFamilyChange}
+              onSelectIncident={handleIncidentSelection}
+            />
 
             <div className="reveal-card rounded-[28px] border border-borderGlass bg-panel/80 p-5 shadow-glass backdrop-blur-xl">
               <div className="mb-5 flex items-center justify-between">

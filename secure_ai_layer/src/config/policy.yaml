@@ -15,6 +15,10 @@ dashboard:
   max_live_events: 50
   latency_threshold_ms: 150
 
+dashboard_copilot:
+  enabled: true
+  model: "gpt-4.1-mini"
+
 rate_limit:
   enabled: true
   window_seconds: 60
