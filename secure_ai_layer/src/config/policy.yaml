@@ -6,6 +6,26 @@ dashboard:
   max_live_events: 50
   latency_threshold_ms: 150
 
+rate_limit:
+  enabled: true
+  window_seconds: 60
+  requests_per_window: 120
+  exempt_paths:
+    - "/"
+    - "/docs"
+    - "/redoc"
+    - "/openapi.json"
+    - "/ws/events"
+
+security:
+  max_body_bytes: 65536
+  exempt_paths:
+    - "/"
+    - "/docs"
+    - "/redoc"
+    - "/openapi.json"
+    - "/ws/events"
+
 session_policy:
   suspicious_window_seconds: 300
   suspicious_min_requests: 10

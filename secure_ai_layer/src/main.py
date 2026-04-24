@@ -12,6 +12,7 @@ from statistics import median
 from typing import Any, Dict, List, Optional
 
 from fastapi import FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, Field
@@ -637,6 +638,46 @@ async def export_compliance_report(
         headers={"Content-Disposition": "attachment; filename=secure-ai-compliance-report.pdf"},
     )
 
+
+@app.get("/ai-report")
+async def generate_ai_report() -> Dict[str, Any]:
+    """
+    Generates an AI cybersecurity report based on the latest firewall telemetry and DDoS blocked attacks.
+    """
+    logger = get_audit_logger()
+    records = logger.get_records(limit=200)
+    summary = build_dashboard_summary(records)
+    
+    prompt = (
+        "You are an expert Cybersecurity AI Analyst examining the latest telemetry from the Secure AI Firewall.\n"
+        f"Total Suspicious Sessions (DDoS/APTs): {summary['totals']['suspicious_sessions']}\n"
+        f"Top Blocked Injection Patterns: {summary['top_patterns']}\n"
+        f"Total Blocked Requests: {summary['totals']['blocked_requests']}\n"
+        "Provide a concise, 3-point actionable security report to mitigate these attacks and tighten API security."
+    )
+    
+    _, adapter = get_provider_adapter(None)
+    
+    try:
+        raw_report = await adapter.complete(
+            "You are a Cybersecurity Expert AI analyzing telemetry.",
+            prompt,
+            temperature=0.3
+        )
+    except Exception as e:
+        raw_report = f"[Offline stub] Security Analyst Report: Detected {summary['totals']['suspicious_sessions']} suspicious sessions. Recommend enforcing strict rate limiting and reviewing blocked pattern: '{summary['top_patterns'][0]['pattern'] if summary['top_patterns'] else 'None'}'."
+
+    return {
+        "status": "success",
+        "report_text": raw_report,
+        "metrics_analyzed": summary["totals"],
+        "timestamp": utc_now_iso()
+    }
+
+
+frontend_dir = BASE_DIR / "frontend"
+os.makedirs(frontend_dir, exist_ok=True)
+app.mount("/ui", StaticFiles(directory=str(frontend_dir), html=True), name="ui")
 
 if __name__ == "__main__":
     import uvicorn

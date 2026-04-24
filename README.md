@@ -1,75 +1,145 @@
-# Secure AI Interaction Layer
+# 🛡️ Secure AI Interaction Layer for SQL & Multimodal Systems
 
-Hackathon prototype for a zero-trust AI middleware that sits between LLM apps and enterprise data systems. The project now includes:
+> **Hackathon Submission:** A robust "Zero-Trust" AI Middleware and Security Firewall for Enterprise Databases.
 
-- A FastAPI security middleware with ingress inspection, composite threat scoring, session anomaly tracking, egress PII redaction, immutable audit logging, compliance export, and WebSocket telemetry.
-- A React dashboard with live attack counters, latency and threat charts, a before/after sanitiser panel, suspicious session watchlist, and one-click red-team demo scenarios.
+![License](https://img.shields.io/badge/license-MIT-blue.svg)
+![Python](https://img.shields.io/badge/python-3.10%2B-blue)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.104.1-green.svg)
 
-## Project Structure
+## 📖 Overview
 
-- `secure_ai_layer/`: Python backend and tests
-- `dashboard/`: React + Vite + Tailwind dashboard
-- `context/PRD_v2.0.md`: product requirements document used for implementation
+The **Secure AI Interaction Layer** serves as an intelligent firewall sitting directly between LLM-based applications and critical enterprise databases. It intercepts, sanitizes, and evaluates incoming LLM prompts to prevent Prompt Injections, Jailbreaks, and malicious SQL injection variants. Once validated, it translates intentions into rigorously parametrized SQL execution and automatically redacts any Sensitive Personal Information (PII) before the LLM can exfiltrate it.
 
-## Backend Features
+### Core Philosophy: The Zero-Trust "Sandwich" Architecture
+Each request is squeezed through 5 specialized security engines:
+1. **Ingress Sanitization:** Inspects Text, OCR from Images (`pytesseract`), and PDF inputs (`PyMuPDF`) for obfuscated prompt injections and encodes heuristics.
+2. **Dynamic Threat Scoring & Session Anomaly Defense (APT):** Computes a composite 0-100 threat score (pattern severities + semantic anomaly) and leverages a stateful `SessionStore` to detect and ban persistent threat actors over multiple requests. 
+3. **Policy-Driven SQL Planner:** Drops raw LLM logic. Maps predicted intent strictly to pre-approved, parameterized Jinja2 templates.
+4. **Egress PII Redaction:** Cleans outgoing data (e.g., masking Aadhaar, PAN, Emails) via strict regex and spaCy NER.
+5. **Immutable Audit Logging:** Appends rich cryptographic telemetry directly to a WAL-mode SQLite database for indisputable compliance reporting.
 
-- `POST /v1/chat/completions`: secure chat entrypoint
-- `GET /audit/records`: latest audit records
-- `GET /dashboard/summary`: dashboard bootstrap payload
-- `GET /dashboard/scenarios`: built-in red-team scenarios
-- `POST /demo/simulate`: trigger hackathon demo traffic
-- `GET /compliance/report?format=json|pdf`: export compliance report
-- `WS /ws/events`: live telemetry stream
+---
 
-## Run the Backend
+## 🏗️ Project Architecture
 
-From `secure_ai_layer/`:
-
-```bash
-python -m pip install -r requirements.txt
-python -m uvicorn src.main:app --reload
+```mermaid
+graph TD
+    User([User/Client]) -->|Multimodal Prompt| Ingress
+    
+    subgraph Secure Middleware
+        Ingress[Ingress Sanitizer] --> |Text Extraction & Input Check| ThreatScoring((Threat Scoring Engine))
+        ThreatScoring --> |Score > Threshold: Reject| Error
+        ThreatScoring --> |Score < Threshold: Route| Planner
+        
+        Planner[SQL Planner] --> |Extract Intent + Params| Templates[(Policy YAML)]
+        Planner --> |Safe LLM Proxy| Adapter[LLM Adapter]
+        
+        Adapter --> Egress[Egress Redactor]
+        Egress --> |PII Masking| Logger[Audit Logger & Compliance]
+    end
+    
+    Adapter -.-> |Secure Fetch| Database[(Enterprise DB)]
+    Logger --> DB[(audit.db)]
+    
+    Logger -->|Sanitized Result| User
 ```
 
-The API starts on `http://127.0.0.1:8000`.
+---
 
-## Run the Dashboard
+## 🚀 Setup & Installation
 
-From `dashboard/`:
+### Prerequisites
 
-```bash
-npm install
-npm run dev
-```
+You will need the following installed:
+* Python 3.10+
+* Tesseract-OCR (For image processing)
+* SQLite (Comes with Python)
 
-The dashboard starts on `http://127.0.0.1:5173`.
-
-Optional environment variables:
-
-- `VITE_API_BASE_URL`
-- `VITE_WS_BASE_URL`
-
-Use `dashboard/.env.example` as the starting point.
-
-## Demo Flow
-
-1. Start the backend.
-2. Start the dashboard.
-3. Open the dashboard and use the `Red-Team Console`.
-4. Trigger `Prompt Injection`, `Persona Hijack`, or `Base64 Smuggling`.
-5. Watch the attack feed, threat gauge, suspicious session panel, and sanitiser comparison update live.
-
-## Verification
-
-Backend tests:
+### 1. Clone & Setup Environment
 
 ```bash
-cd secure_ai_layer
-python -m pytest
+git clone <your-repo-link>
+cd TechTarang-Hackathon-GJUT/secure_ai_layer
+python -m venv venv
+
+# Activate Environment
+# Windows:
+venv\Scripts\activate
+# macOS/Linux:
+source venv/bin/activate
+
+pip install -r requirements.txt
 ```
 
-Frontend build:
+### 2. Configure Environment Variables
+Create a `.env` file in the root `secure_ai_layer` folder:
+```env
+OPENAI_API_KEY=your_key_here
+CLAUDE_API_KEY=optional_key
+GEMINI_API_KEY=optional_key
+POLICY_FILE_PATH=src/config/policy.yaml
+```
+
+### 3. Run the AI Firewall Server
+```bash
+uvicorn src.main:app --host 127.0.0.1 --port 8000 --reload
+```
+
+---
+
+## 💻 API Endpoints & Testing
+
+We provide a mock script, `scripts/test_api.py`, to test the complete end-to-end flow. You can also run generic `curl` tests.
+
+### Endpoint: `/v1/chat/completions` Complete Chat Request
+Perform an end-to-end request verifying prompt translation and egress sanitization:
 
 ```bash
-cd dashboard
-npm run build
+curl -X POST "http://127.0.0.1:8000/v1/chat/completions" \
+     -H "Content-Type: application/json" \
+     -d '{
+           "user_message": "Tell me my current account balance",
+           "session_id": "demo_session_1"
+         }'
 ```
+
+**Expected JSON Result & Telemetry:**
+The API will return an intercepted secure stub representing the final output, along with robust metadata:
+* `risk_level`: Evaluated dynamically. (e.g., `GREEN`, `AMBER`, `RED`)
+* `threat_score`: Numeric severity identifier.
+* `sql_intent_token`: Identified mapped token.
+* `pii_redacted`: Masked data counters.
+
+### Endpoint: `/compliance/report` Generate DPDP & Trust PDF
+Use this to generate the required compliance PDF report containing DPDP tags, risk scores, and telemetry.
+
+```bash
+curl -X GET "http://127.0.0.1:8000/compliance/report?start=2024-01-01&end=2026-12-31" -o compliance_report.pdf
+```
+*(This uses WeasyPrint to output a beautifully formatted PDF file right to your machine)*
+
+---
+
+## 🛡️ Hacking & Red Teaming
+
+We embrace breaking our own systems! Use our automated Red Team evaluation script to run baseline jailbreaks based on garak methodologies.
+
+```bash
+python scripts/red_team.py
+```
+This script blasts the API with obfuscated prompts (e.g. `IGNORE PREVIOUS` and nested base64 injections) and verifies the SessionStore API accurately bans the bad actors (`403 FORBIDDEN` / `429 TOO MANY REQUESTS`).
+
+---
+
+## 🧩 Tech Stack
+- **Backend Framework:** FastAPI (Python)
+- **AI Integration:** OpenAI Python SDK
+- **Policy Engine:** PyYAML / Watchdog (Hot reloading)
+- **PII / NLP:** Regex / spaCy
+- **Multimodal (Vision/Docs):** PyMuPDF (`fitz`), `pytesseract`
+- **Database:** SQLite³ (WAL Mode)
+- **Report Generation:** WeasyPrint + Jinja2
+
+---
+
+❤️ Built for TechTarang Hackathon GJUT!
