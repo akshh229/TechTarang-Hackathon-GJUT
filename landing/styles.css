@@ -563,3 +563,30 @@ h3, h4, .nav-logo {
   font-size: 2.5rem !important;
 }
 
+/* ===== FOOTER DASHBOARD BUTTON ===== */
+.footer-dashboard-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.7rem 1.4rem;
+  background: var(--grad);
+  border-radius: 10px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: 1.25rem;
+  transition: transform 0.2s, box-shadow 0.2s, opacity 0.2s;
+  box-shadow: 0 4px 20px rgba(168,85,247,0.3);
+}
+.footer-dashboard-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(168,85,247,0.5);
+  opacity: 0.92;
+}
+.footer-cta-sub {
+  font-size: 0.78rem !important;
+  color: #475569 !important;
+  margin-bottom: 0.75rem !important;
+  margin-top: 0 !important;
+}
+

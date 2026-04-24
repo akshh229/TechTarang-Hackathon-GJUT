@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: techtarang-secure-ai-layer
+    env: docker
+    rootDir: secure_ai_layer
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /
+    autoDeploy: true
+    envVars:
+      - key: POLICY_FILE_PATH
+        value: src/config/policy.yaml
+      - key: AUDIT_DB_PATH
+        value: /app/audit.db
+      - key: FRONTEND_ORIGINS
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: CLAUDE_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false

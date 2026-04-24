@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Node
+node_modules/
+
+# Environment and secrets
+.env
+.env.*
+secure_ai_layer/.env
+secure_ai_layer/.env.*
+dashboard/.env
+
+dist/

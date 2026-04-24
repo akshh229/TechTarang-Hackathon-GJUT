@@ -94,6 +94,26 @@ def get_audit_logger() -> AuditLogger:
     return AuditLogger(os.getenv("AUDIT_DB_PATH", str(DEFAULT_AUDIT_DB_PATH)))
 
 
+def get_cors_origins() -> List[str]:
+    # FRONTEND_ORIGINS accepts a comma-separated list of origins.
+    raw_value = os.getenv("FRONTEND_ORIGINS", "")
+    configured_origins = [origin.strip() for origin in raw_value.split(",") if origin.strip()]
+    local_defaults = [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:4173",
+        "http://127.0.0.1:4173",
+    ]
+
+    seen = set()
+    merged: List[str] = []
+    for origin in [*configured_origins, *local_defaults]:
+        if origin not in seen:
+            seen.add(origin)
+            merged.append(origin)
+    return merged
+
+
 def utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
@@ -598,12 +618,7 @@ app.add_middleware(PayloadSizeLimitMiddleware)
 app.add_middleware(RateLimitMiddleware)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost:4173",
-        "http://127.0.0.1:4173",
-    ],
+    allow_origins=get_cors_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

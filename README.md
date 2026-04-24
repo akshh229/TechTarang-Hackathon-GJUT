@@ -266,6 +266,61 @@ Build for production:
 npm run build
 ```
 
+## Deploy: Netlify (Frontend) + Render (Backend)
+
+Do not place provider API keys in the frontend. Keep them only on Render as backend environment variables.
+
+### 1. Deploy backend to Render
+
+Project root for backend service:
+
+```text
+secure_ai_layer/
+```
+
+Render will use the included `secure_ai_layer/Dockerfile`.
+
+Set these Render environment variables:
+
+```env
+OPENAI_API_KEY=your_real_openai_key
+CLAUDE_API_KEY=optional
+GEMINI_API_KEY=optional
+POLICY_FILE_PATH=src/config/policy.yaml
+AUDIT_DB_PATH=/app/audit.db
+FRONTEND_ORIGINS=https://your-site.netlify.app
+```
+
+After deploy, copy your Render public URL, for example:
+
+```text
+https://your-api-name.onrender.com
+```
+
+### 2. Deploy dashboard to Netlify
+
+Use this repo and configure:
+
+- Base directory: `dashboard`
+- Build command: `npm run build`
+- Publish directory: `dist`
+
+Set Netlify environment variables:
+
+```env
+VITE_API_BASE_URL=https://your-api-name.onrender.com
+VITE_WS_BASE_URL=wss://your-api-name.onrender.com
+```
+
+The repo already includes `dashboard/netlify.toml` with SPA redirects.
+
+### 3. Final check
+
+- Open the Netlify site.
+- Confirm dashboard cards load from Render.
+- Run one AI/copilot request and verify backend logs on Render.
+- Confirm no API key appears in browser DevTools or frontend source.
+
 ## API Overview
 
 ### Core endpoints
