@@ -1,0 +1,54 @@
+llm:
+  provider: "openai" # Options: openai, claude, gemini, ollama
+  model: "gpt-4.1-mini"
+
+dashboard:
+  max_live_events: 50
+  latency_threshold_ms: 150
+
+session_policy:
+  suspicious_window_seconds: 300
+  suspicious_min_requests: 10
+  cooldown_window_seconds: 600
+  cooldown_blocks: 5
+  cooldown_duration_seconds: 900
+  session_ttl_seconds: 1800
+
+# SQL Policy rules for Jinja2 template selection
+sql_policy:
+  templates:
+    GET_ACCOUNT_BALANCE: "SELECT balance FROM accounts WHERE user_id = :user_id"
+    GET_RECENT_TRANSACTIONS: "SELECT * FROM transactions WHERE user_id = :user_id ORDER BY date DESC LIMIT 5"
+    GET_USER_PROFILE: "SELECT name, email, phone FROM users WHERE user_id = :user_id"
+    UPDATE_CONTACT_INFO: "UPDATE users SET email = :email WHERE user_id = :user_id"
+    GET_LOAN_STATUS: "SELECT status, amount FROM loans WHERE user_id = :user_id AND loan_id = :loan_id"
+
+# Known Injection Patterns for text heuristics
+injection_rules:
+  - pattern: "ignore all previous instructions"
+    severity: CRITICAL
+  - pattern: "system prompt"
+    severity: HIGH
+  - pattern: "override"
+    severity: MEDIUM
+  - pattern: "pretend you are dan"
+    severity: HIGH
+  - pattern: "dump the users table"
+    severity: CRITICAL
+  - pattern: "developer message"
+    severity: HIGH
+  - pattern: "where 1=1"
+    severity: MEDIUM
+  - pattern: "base64"
+    severity: LOW
+
+# PII Patterns for Redaction
+pii_patterns:
+  pan: "[A-Z]{5}[0-9]{4}[A-Z]{1}"
+  aadhaar: "\\b\\d{4}\\s?\\d{4}\\s?\\d{4}\\b"
+  email: "\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Z|a-z]{2,}\\b"
+  phone: "\\+?\\d{10,13}"
+
+risk_thresholds:
+  amber: 30
+  red: 60

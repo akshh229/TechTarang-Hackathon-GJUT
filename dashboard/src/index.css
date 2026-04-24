@@ -1,0 +1,67 @@
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --panel: 11 16 30;
+  --panel-soft: 18 24 44;
+  --border-glass: 255 255 255;
+  --accent: 53 201 204;
+  --accent-alt: 122 167 255;
+  --danger: 255 106 72;
+  --warning: 255 191 87;
+  --success: 117 255 169;
+  --ink: 232 241 255;
+  --muted: 149 165 200;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(circle at top, rgb(var(--accent) / 0.08), transparent 34%),
+    linear-gradient(180deg, #090d17 0%, #05070f 100%);
+  color: rgb(var(--ink));
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgb(255 255 255 / 0.04);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgb(var(--accent-alt) / 0.28);
+  border-radius: 999px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
