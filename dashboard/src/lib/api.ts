@@ -1,12 +1,18 @@
 import type {
+  AdaptiveDefenseStatus,
   AdaptiveDefenseSimulation,
+  AttackReportCompileResult,
+  DashboardCopilotResponse,
   DashboardSummary,
+  IncidentDrilldown,
+  Incident,
+  PolicyRecommendationResult,
   Scenario,
   SocketMessage,
 } from "../types";
 
 const apiBaseUrl =
-  import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "") ?? "http://127.0.0.1:8000";
+  import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "") ?? "http://localhost:8000";
 
 const wsBaseUrl =
   import.meta.env.VITE_WS_BASE_URL?.replace(/\/$/, "") ??
@@ -38,6 +44,29 @@ export async function getScenarios(): Promise<Scenario[]> {
   return response.scenarios;
 }
 
+export async function getDashboardIncidents(): Promise<Incident[]> {
+  const response = await fetchJson<{ incidents: Incident[] }>("/dashboard/incidents");
+  return response.incidents;
+}
+
+export async function getIncidentRecords(incidentId: string): Promise<IncidentDrilldown> {
+  return fetchJson<IncidentDrilldown>(`/dashboard/incidents/${incidentId}/records`);
+}
+
+export async function queryDashboardCopilot(
+  question: string,
+  options?: { family?: string | null; incidentId?: string | null },
+): Promise<DashboardCopilotResponse> {
+  return fetchJson<DashboardCopilotResponse>("/dashboard/copilot/query", {
+    method: "POST",
+    body: JSON.stringify({
+      question,
+      family: options?.family ?? null,
+      incident_id: options?.incidentId ?? null,
+    }),
+  });
+}
+
 export async function simulateScenario(scenarioId: string): Promise<void> {
   await fetchJson("/demo/simulate", {
     method: "POST",
@@ -51,6 +80,52 @@ export async function simulateAdaptiveDefense(
   return fetchJson<AdaptiveDefenseSimulation>("/adaptive-defense/simulate", {
     method: "POST",
     body: JSON.stringify({ message }),
+  });
+}
+
+export async function getAdaptiveDefenseStatus(): Promise<AdaptiveDefenseStatus> {
+  return fetchJson<AdaptiveDefenseStatus>("/adaptive-defense/status");
+}
+
+export async function compileAttackReport(payload: {
+  title: string;
+  reportText: string;
+  summary?: string;
+  severity?: string;
+  attackSurface?: string[];
+  indicators?: string[];
+  payloadExamples?: string[];
+  references?: string[];
+  applyChanges?: boolean;
+}): Promise<AttackReportCompileResult> {
+  return fetchJson<AttackReportCompileResult>("/adaptive-defense/compile", {
+    method: "POST",
+    body: JSON.stringify({
+      title: payload.title,
+      report_text: payload.reportText,
+      summary: payload.summary ?? "",
+      severity: payload.severity ?? "HIGH",
+      attack_surface: payload.attackSurface ?? [],
+      indicators: payload.indicators ?? [],
+      payload_examples: payload.payloadExamples ?? [],
+      references: payload.references ?? [],
+      apply_changes: payload.applyChanges ?? false,
+    }),
+  });
+}
+
+export async function recommendPolicy(payload?: {
+  minEvents?: number;
+  timeWindowHours?: number | null;
+  includeFalsePositiveReview?: boolean;
+}): Promise<PolicyRecommendationResult> {
+  return fetchJson<PolicyRecommendationResult>("/adaptive-defense/recommend", {
+    method: "POST",
+    body: JSON.stringify({
+      min_events: payload?.minEvents ?? 5,
+      time_window_hours: payload?.timeWindowHours ?? null,
+      include_false_positive_review: payload?.includeFalsePositiveReview ?? true,
+    }),
   });
 }
 

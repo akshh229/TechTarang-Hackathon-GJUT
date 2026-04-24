@@ -24,7 +24,7 @@ export function AdaptiveDefensePanel({
   const wouldBlock = result?.would_block ?? false;
 
   return (
-    <section className="reveal-card rounded-[28px] border border-borderGlass bg-panel/80 p-5 shadow-glass backdrop-blur-xl">
+    <section className="reveal-card rounded-[28px] border border-borderGlass/14 bg-panel/80 p-5 shadow-glass backdrop-blur-xl">
       <div className="mb-5 flex items-start justify-between gap-4">
         <div>
           <p className="text-[0.68rem] uppercase tracking-[0.35em] text-muted">
@@ -58,7 +58,7 @@ export function AdaptiveDefensePanel({
               value={input}
               onChange={(event) => onInputChange(event.target.value)}
               rows={7}
-              className="mt-3 w-full rounded-[22px] border border-white/10 bg-[#0b1020] px-4 py-4 text-sm leading-7 text-ink outline-none transition focus:border-accent/40"
+              className="mt-3 w-full rounded-[22px] border border-borderGlass/12 bg-panelSoft/80 px-4 py-4 text-sm leading-7 text-ink outline-none transition focus:border-accent/40"
               placeholder="Paste a suspicious message or attack snippet..."
             />
           </label>
@@ -67,7 +67,7 @@ export function AdaptiveDefensePanel({
             type="button"
             onClick={() => void onRun(input)}
             disabled={loading || !input.trim()}
-            className="inline-flex items-center gap-3 rounded-full border border-accent/25 bg-accent/10 px-5 py-3 text-sm uppercase tracking-[0.25em] text-ink transition hover:bg-accent/15 disabled:cursor-wait disabled:opacity-70"
+            className="action-button inline-flex items-center gap-3 rounded-full border border-accent/25 bg-accent/10 px-5 py-3 text-sm uppercase tracking-[0.25em] text-ink disabled:cursor-wait disabled:opacity-70"
           >
             <Radar size={15} />
             {loading ? "Scanning" : "Simulate Defense"}
@@ -87,7 +87,7 @@ export function AdaptiveDefensePanel({
           }`}
         >
           {!result ? (
-            <div className="grid h-full min-h-[20rem] place-items-center rounded-[18px] border border-white/8 bg-white/[0.03] px-6 text-center text-sm leading-7 text-muted">
+            <div className="grid h-full min-h-[20rem] place-items-center rounded-[18px] border border-borderGlass/10 bg-white/45 px-6 text-center text-sm leading-7 text-muted">
               Run a simulation to see risk level, matched attack families, and response playbooks.
             </div>
           ) : (
@@ -109,26 +109,26 @@ export function AdaptiveDefensePanel({
                   </div>
                 </div>
 
-                <div className="rounded-[18px] border border-white/10 bg-white/[0.04] px-4 py-3 text-right">
+                <div className="interactive-item rounded-[18px] border border-borderGlass/12 bg-white/55 px-4 py-3 text-right">
                   <p className="text-[0.68rem] uppercase tracking-[0.24em] text-muted">Model backend</p>
                   <p className="mt-2 font-display text-lg text-ink">{result.model_backend}</p>
                 </div>
               </div>
 
               <div className="grid gap-3 md:grid-cols-3">
-                <div className="rounded-[20px] border border-white/8 bg-white/[0.04] px-4 py-3">
+                <div className="interactive-item rounded-[20px] border border-borderGlass/10 bg-white/55 px-4 py-3">
                   <p className="text-[0.68rem] uppercase tracking-[0.24em] text-muted">Pattern</p>
                   <p className="mt-2 font-display text-2xl text-ink">
                     {result.score_breakdown.pattern_match}
                   </p>
                 </div>
-                <div className="rounded-[20px] border border-white/8 bg-white/[0.04] px-4 py-3">
+                <div className="interactive-item rounded-[20px] border border-borderGlass/10 bg-white/55 px-4 py-3">
                   <p className="text-[0.68rem] uppercase tracking-[0.24em] text-muted">Semantic</p>
                   <p className="mt-2 font-display text-2xl text-ink">
                     {result.score_breakdown.semantic_anomaly}
                   </p>
                 </div>
-                <div className="rounded-[20px] border border-white/8 bg-white/[0.04] px-4 py-3">
+                <div className="interactive-item rounded-[20px] border border-borderGlass/10 bg-white/55 px-4 py-3">
                   <p className="text-[0.68rem] uppercase tracking-[0.24em] text-muted">Session</p>
                   <p className="mt-2 font-display text-2xl text-ink">
                     {result.score_breakdown.session_replay}
@@ -137,7 +137,7 @@ export function AdaptiveDefensePanel({
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
-                <div className="rounded-[20px] border border-white/8 bg-white/[0.04] p-4">
+                <div className="interactive-item rounded-[20px] border border-borderGlass/10 bg-white/55 p-4">
                   <div className="flex items-center gap-2 text-muted">
                     <Sparkles size={15} />
                     <p className="text-[0.68rem] uppercase tracking-[0.28em]">Detected families</p>
@@ -147,7 +147,7 @@ export function AdaptiveDefensePanel({
                       result.detected_families.map((family) => (
                         <span
                           key={family}
-                          className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-2 text-xs uppercase tracking-[0.18em] text-ink"
+                          className="interactive-chip rounded-full border border-borderGlass/12 bg-panelSoft/70 px-3 py-2 text-xs uppercase tracking-[0.18em] text-ink"
                         >
                           {titleCase(family)}
                         </span>
@@ -158,7 +158,7 @@ export function AdaptiveDefensePanel({
                   </div>
                 </div>
 
-                <div className="rounded-[20px] border border-white/8 bg-white/[0.04] p-4">
+                <div className="interactive-item rounded-[20px] border border-borderGlass/10 bg-white/55 p-4">
                   <div className="flex items-center gap-2 text-muted">
                     <Workflow size={15} />
                     <p className="text-[0.68rem] uppercase tracking-[0.28em]">Playbooks</p>
@@ -168,7 +168,7 @@ export function AdaptiveDefensePanel({
                       result.recommended_playbooks.map((playbook) => (
                         <div
                           key={`${playbook.family}-${playbook.action}`}
-                          className="rounded-[16px] border border-white/8 bg-black/10 px-3 py-3"
+                          className="interactive-item rounded-[16px] border border-borderGlass/10 bg-panelSoft/75 px-3 py-3"
                         >
                           <p className="text-xs uppercase tracking-[0.2em] text-accent">
                             {titleCase(playbook.action)}
@@ -183,7 +183,7 @@ export function AdaptiveDefensePanel({
                 </div>
               </div>
 
-              <div className="rounded-[20px] border border-white/8 bg-[#0b1020] p-4">
+              <div className="interactive-item rounded-[20px] border border-borderGlass/10 bg-panelSoft/80 p-4">
                 <p className="text-[0.68rem] uppercase tracking-[0.28em] text-muted">
                   Sanitised payload + signals
                 </p>
@@ -192,7 +192,7 @@ export function AdaptiveDefensePanel({
                   {result.signals.map((signal) => (
                     <span
                       key={signal}
-                      className="rounded-full border border-white/10 bg-white/[0.05] px-3 py-1.5 text-[0.68rem] uppercase tracking-[0.16em] text-muted"
+                      className="interactive-chip rounded-full border border-borderGlass/12 bg-white/55 px-3 py-1.5 text-[0.68rem] uppercase tracking-[0.16em] text-muted"
                     >
                       {signal}
                     </span>

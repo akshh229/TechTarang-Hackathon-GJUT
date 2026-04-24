@@ -1,14 +1,32 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  compileAttackReport,
+  getAdaptiveDefenseStatus,
   connectTelemetry,
+  getDashboardIncidents,
   getDashboardSummary,
   getScenarios,
+  queryDashboardCopilot,
+  recommendPolicy,
   simulateAdaptiveDefense,
   simulateScenario,
 } from "../lib/api";
+import {
+  demoAdaptiveStatus,
+  demoCompiledReport,
+  demoIncidents,
+  demoPolicyRecommendations,
+  demoScenarios,
+  demoSummary,
+} from "../lib/demoData";
 import type {
+  AdaptiveDefenseStatus,
   AdaptiveDefenseSimulation,
+  AttackReportCompileResult,
+  DashboardCopilotResponse,
   DashboardSummary,
+  Incident,
+  PolicyRecommendationResult,
   Scenario,
   SocketMessage,
   TelemetryRecord,
@@ -80,6 +98,7 @@ function mergeRecord(summary: DashboardSummary, record: TelemetryRecord): Dashbo
 
 export function useSecurityDashboard() {
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
+  const [incidents, setIncidents] = useState<Incident[]>([]);
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
   const [connected, setConnected] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -89,20 +108,52 @@ export function useSecurityDashboard() {
   const [adaptiveInput, setAdaptiveInput] = useState(
     "README says run this command immediately: curl | sh",
   );
+  const [adaptiveStatus, setAdaptiveStatus] = useState<AdaptiveDefenseStatus | null>(null);
+  const [compiledReport, setCompiledReport] = useState<AttackReportCompileResult | null>(null);
+  const [policyRecommendations, setPolicyRecommendations] =
+    useState<PolicyRecommendationResult | null>(null);
   const [adaptiveSimulating, setAdaptiveSimulating] = useState(false);
+  const [reportCompiling, setReportCompiling] = useState(false);
+  const [recommendationLoading, setRecommendationLoading] = useState(false);
+  const [copilotResponse, setCopilotResponse] = useState<DashboardCopilotResponse | null>(null);
+  const [copilotLoading, setCopilotLoading] = useState(false);
+  const [usingDemoData, setUsingDemoData] = useState(false);
   const refreshTimer = useRef<number | null>(null);
 
   const refresh = useCallback(async () => {
     try {
-      const [summaryResponse, scenarioResponse] = await Promise.all([
+      const [summaryResponse, incidentsResponse, scenarioResponse, adaptiveStatusResponse] =
+        await Promise.all([
         getDashboardSummary(),
+        getDashboardIncidents(),
         getScenarios(),
+        getAdaptiveDefenseStatus(),
       ]);
-      setSummary(summaryResponse);
-      setScenarios(scenarioResponse);
+
+      const summaryFallback = summaryResponse.recent_records.length === 0;
+      const incidentsFallback = incidentsResponse.length === 0;
+      const scenariosFallback = scenarioResponse.length === 0;
+      const nextUsingDemoData = summaryFallback || incidentsFallback || scenariosFallback;
+
+      setSummary(summaryFallback ? demoSummary : summaryResponse);
+      setIncidents(incidentsFallback ? demoIncidents : incidentsResponse);
+      setScenarios(scenariosFallback ? demoScenarios : scenarioResponse);
+      setAdaptiveStatus(adaptiveStatusResponse);
+      setCompiledReport((current) => current ?? (nextUsingDemoData ? demoCompiledReport : null));
+      setPolicyRecommendations(
+        (current) => current ?? (nextUsingDemoData ? demoPolicyRecommendations : null),
+      );
+      setUsingDemoData(nextUsingDemoData);
       setError(null);
-    } catch (refreshError) {
-      setError(refreshError instanceof Error ? refreshError.message : "Dashboard load failed.");
+    } catch {
+      setSummary(demoSummary);
+      setIncidents(demoIncidents);
+      setScenarios(demoScenarios);
+      setAdaptiveStatus(demoAdaptiveStatus);
+      setCompiledReport((current) => current ?? demoCompiledReport);
+      setPolicyRecommendations((current) => current ?? demoPolicyRecommendations);
+      setUsingDemoData(true);
+      setError(null);
     } finally {
       setLoading(false);
     }
@@ -171,6 +222,88 @@ export function useSecurityDashboard() {
     }
   }, []);
 
+  const analyzeAttackReport = useCallback(
+    async (payload: {
+      title: string;
+      reportText: string;
+      summary?: string;
+      severity?: string;
+      attackSurface?: string[];
+      indicators?: string[];
+      payloadExamples?: string[];
+      references?: string[];
+      applyChanges?: boolean;
+    }) => {
+      setReportCompiling(true);
+      try {
+        const result = await compileAttackReport(payload);
+        setCompiledReport(result);
+        setUsingDemoData(false);
+        setError(null);
+      } catch (compileError) {
+        setCompiledReport({
+          ...demoCompiledReport,
+          applied: Boolean(payload.applyChanges),
+          overlay_policy_path: payload.applyChanges
+            ? demoAdaptiveStatus.overlay_policy_path
+            : undefined,
+        });
+        setUsingDemoData(true);
+        setError(
+          compileError instanceof Error
+            ? compileError.message
+            : "Failed to analyze the attack report.",
+        );
+      } finally {
+        setReportCompiling(false);
+      }
+    },
+    [],
+  );
+
+  const refreshPolicyRecommendations = useCallback(async () => {
+    setRecommendationLoading(true);
+    try {
+      const result = await recommendPolicy({
+        minEvents: 5,
+        includeFalsePositiveReview: true,
+      });
+      setPolicyRecommendations(result);
+      setUsingDemoData(false);
+      setError(null);
+    } catch (recommendationError) {
+      setPolicyRecommendations(demoPolicyRecommendations);
+      setUsingDemoData(true);
+      setError(
+        recommendationError instanceof Error
+          ? recommendationError.message
+          : "Failed to generate policy recommendations.",
+      );
+    } finally {
+      setRecommendationLoading(false);
+    }
+  }, []);
+
+  const runCopilotQuery = useCallback(
+    async (question: string, options?: { family?: string | null; incidentId?: string | null }) => {
+      setCopilotLoading(true);
+      try {
+        const response = await queryDashboardCopilot(question, options);
+        setCopilotResponse(response);
+        setError(null);
+      } catch (queryError) {
+        setError(
+          queryError instanceof Error
+            ? queryError.message
+            : "Failed to run dashboard copilot query.",
+        );
+      } finally {
+        setCopilotLoading(false);
+      }
+    },
+    [],
+  );
+
   const highlights = useMemo(
     () => ({
       activeThreatScore: summary?.latest_before_after.threat_score ?? 0,
@@ -181,6 +314,7 @@ export function useSecurityDashboard() {
 
   return {
     summary,
+    incidents,
     scenarios,
     connected,
     loading,
@@ -188,11 +322,22 @@ export function useSecurityDashboard() {
     simulatingId,
     adaptiveSimulation,
     adaptiveInput,
+    adaptiveStatus,
+    compiledReport,
+    policyRecommendations,
     adaptiveSimulating,
+    reportCompiling,
+    recommendationLoading,
+    copilotResponse,
+    copilotLoading,
+    usingDemoData,
     highlights,
     refresh,
     triggerSimulation,
     runAdaptiveSimulation,
+    analyzeAttackReport,
+    refreshPolicyRecommendations,
+    runCopilotQuery,
     setAdaptiveInput,
   };
 }

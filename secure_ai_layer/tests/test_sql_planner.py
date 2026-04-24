@@ -2,6 +2,7 @@ import pytest
 import os
 import tempfile
 import yaml
+import asyncio
 
 from src.config.config_loader import update_active_policy
 from src.sql_planner.planner import SQLPlanner
@@ -35,6 +36,13 @@ def test_intent_classification():
     
     intent2 = planner.classify_intent("Can I see my profile details?")
     assert intent2 == "GET_USER_PROFILE"
+
+def test_ai_intent_classification_falls_back_to_rules_without_json():
+    planner = SQLPlanner()
+    result = asyncio.run(planner.classify_intent_with_metadata("Tell me my account balance"))
+    assert result["intent"] == "GET_ACCOUNT_BALANCE"
+    assert result["intent_source"] in {"rule", "ai_fallback"}
+    assert result["intent_confidence"] >= 0.72 or result["intent_source"] != "ai"
 
 def test_render_query():
     planner = SQLPlanner()

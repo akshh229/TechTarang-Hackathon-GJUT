@@ -35,8 +35,8 @@ This repo now includes both the FastAPI middleware and the React dashboard used 
 | Output protection | PII redaction for PAN, Aadhaar, email, and phone |
 | Audit trail | Request hashes, risk labels, signals, latency, compliance tags, and stored telemetry |
 | Adaptive defense | Compile attack reports into runtime signatures, guardrails, and policy overlays |
-| Dashboard APIs | Summary, audit feed, scenarios, compliance export, AI report, and live events |
-| Operator dashboard | Threat charts, attack feed, session watchlist, scenario runner, and adaptive-defense lab |
+| Dashboard APIs | Summary, incidents, drilldown, copilot, compliance export, AI reports, and live events |
+| Operator dashboard | Threat charts, attack feed, incidents, session watchlist, scenario runner, copilot, and adaptive-defense lab |
 
 ## Security Flow
 
@@ -123,6 +123,14 @@ Before a response is returned, the middleware can redact:
 - Phone numbers
 
 Those redaction counts also show up in stored telemetry and dashboard summaries.
+
+The current build also includes a second-stage unstructured egress classifier that can:
+
+- skip low-risk clean responses to avoid extra latency
+- flag sensitive narrative leaks for review
+- redact model-identified risky spans
+- withhold responses that look secret-like or policy-violating
+- persist egress decisions into the audit trail
 
 ### 7. Adaptive Defense
 
@@ -268,13 +276,22 @@ npm run build
 | `POST /v1/chat/completions` | Main secured interaction endpoint |
 | `GET /audit/records` | Recent audit records formatted for the dashboard |
 | `GET /dashboard/summary` | Aggregated telemetry for charts and overview cards |
+| `GET /dashboard/incidents` | Clustered active incidents from recent risky telemetry |
+| `GET /dashboard/incidents/{incident_id}/records` | Drill into the records that make up an incident |
+| `POST /dashboard/copilot/query` | Grounded analyst Q&A over incidents and recent records |
 | `GET /dashboard/scenarios` | Built-in simulation scenarios |
 | `POST /demo/simulate` | Trigger a predefined red-team scenario |
 | `GET /compliance/report` | Compliance export in JSON or PDF |
 | `GET /adaptive-defense/status` | Current adaptive-defense state |
 | `POST /adaptive-defense/compile` | Convert an attack report into a policy patch |
 | `POST /adaptive-defense/simulate` | Preview how active defenses would treat a payload |
+| `POST /adaptive-defense/recommend` | Generate recommendation candidates from live telemetry |
+| `POST /v1/analyze/image` | OCR and risk-analysis endpoint for image uploads |
+| `POST /v1/analyze/pdf` | Extraction and risk-analysis endpoint for PDF uploads |
 | `GET /ai-report` | AI-generated summary from recent telemetry |
+| `GET /ai-report/security-summary` | Executive security narrative from telemetry |
+| `GET /ai-report/compliance-summary` | Compliance-focused narrative from telemetry |
+| `GET /ai-report/incident-summary` | Incident-cluster narrative from recent campaigns |
 | `GET /ws/events` | WebSocket stream for live telemetry |
 
 ### Example secured request
@@ -358,6 +375,9 @@ The dashboard is no longer just a status page. It acts like an operator console 
 You can use it to:
 
 - watch live threat telemetry
+- filter incidents by attack family
+- click incidents to drill into related records
+- ask grounded copilot questions about incidents and recent records
 - inspect the latest sanitized input and output previews
 - see which patterns are firing most often
 - monitor suspicious sessions

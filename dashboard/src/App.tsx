@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
   Cpu,
@@ -10,6 +10,7 @@ import {
   Waves,
 } from "lucide-react";
 import gsap from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
 import {
   Area,
   AreaChart,
@@ -27,10 +28,17 @@ import {
 
 import { AdaptiveDefensePanel } from "./components/AdaptiveDefensePanel";
 import { AttackFeedTable } from "./components/AttackFeedTable";
+import { DashboardCopilotPanel } from "./components/DashboardCopilotPanel";
+import { HumanReviewPanel } from "./components/HumanReviewPanel";
+import { IncidentsPanel } from "./components/IncidentsPanel";
 import { MetricCard } from "./components/MetricCard";
 import { SimulatorPanel } from "./components/SimulatorPanel";
 import { ThreatGauge } from "./components/ThreatGauge";
 import { useSecurityDashboard } from "./hooks/useSecurityDashboard";
+import { getIncidentRecords } from "./lib/api";
+import type { Incident, TelemetryRecord } from "./types";
+
+gsap.registerPlugin(ScrollTrigger);
 
 function formatShortTimestamp(timestamp: string) {
   return new Date(timestamp).toLocaleTimeString([], {
@@ -40,10 +48,29 @@ function formatShortTimestamp(timestamp: string) {
   });
 }
 
+function formatIntentConfidence(confidence?: number) {
+  if (typeof confidence !== "number") {
+    return "--";
+  }
+  return `${Math.round(confidence * 100)}%`;
+}
+
+const chartGridStroke = "rgba(123, 96, 74, 0.12)";
+const chartAxisStroke = "rgba(92, 74, 58, 0.62)";
+const chartTooltipStyle = {
+  background: "rgba(255, 248, 239, 0.98)",
+  border: "1px solid rgba(123, 96, 74, 0.12)",
+  borderRadius: 18,
+  color: "rgb(43, 35, 29)",
+};
+const heroHeadline = "SUDARSHAN AI firewall dashboard for SQL and multimodal attack telemetry.";
+
 export default function App() {
   const dashboardRef = useRef<HTMLDivElement | null>(null);
+  const feedSectionRef = useRef<HTMLDivElement | null>(null);
   const {
     summary,
+    incidents,
     scenarios,
     connected,
     loading,
@@ -51,13 +78,75 @@ export default function App() {
     simulatingId,
     adaptiveSimulation,
     adaptiveInput,
+    adaptiveStatus,
+    compiledReport,
+    policyRecommendations,
     adaptiveSimulating,
+    reportCompiling,
+    recommendationLoading,
+    copilotResponse,
+    copilotLoading,
+    usingDemoData,
     highlights,
     refresh,
     triggerSimulation,
     runAdaptiveSimulation,
+    analyzeAttackReport,
+    refreshPolicyRecommendations,
+    runCopilotQuery,
     setAdaptiveInput,
   } = useSecurityDashboard();
+  const [selectedFamily, setSelectedFamily] = useState<string | null>(null);
+  const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null);
+  const [incidentRecords, setIncidentRecords] = useState<TelemetryRecord[]>([]);
+  const [incidentLoading, setIncidentLoading] = useState(false);
+  const [typedHeadline, setTypedHeadline] = useState("");
+  const [heroTypingDone, setHeroTypingDone] = useState(false);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    if (mediaQuery.matches) {
+      setTypedHeadline(heroHeadline);
+      setHeroTypingDone(true);
+      return;
+    }
+
+    setTypedHeadline("");
+    setHeroTypingDone(false);
+    let currentIndex = 0;
+    const interval = window.setInterval(() => {
+      currentIndex += 1;
+      setTypedHeadline(heroHeadline.slice(0, currentIndex));
+
+      if (currentIndex >= heroHeadline.length) {
+        window.clearInterval(interval);
+        setHeroTypingDone(true);
+      }
+    }, 34);
+
+    return () => {
+      window.clearInterval(interval);
+    };
+  }, []);
+
+  useEffect(() => {
+    const dashboard = dashboardRef.current;
+    if (!dashboard) {
+      return;
+    }
+
+    const handlePointerMove = (event: PointerEvent) => {
+      const rect = dashboard.getBoundingClientRect();
+      dashboard.style.setProperty("--pointer-x", `${event.clientX - rect.left}px`);
+      dashboard.style.setProperty("--pointer-y", `${event.clientY - rect.top}px`);
+    };
+
+    dashboard.addEventListener("pointermove", handlePointerMove);
+
+    return () => {
+      dashboard.removeEventListener("pointermove", handlePointerMove);
+    };
+  }, []);
 
   useEffect(() => {
     if (!dashboardRef.current) {
@@ -70,18 +159,52 @@ export default function App() {
     }
 
     const context = gsap.context(() => {
-      gsap.fromTo(
-        ".reveal-card",
-        { opacity: 0, y: 36, rotateX: -8 },
-        {
-          opacity: 1,
-          y: 0,
-          rotateX: 0,
-          duration: 0.8,
-          stagger: 0.08,
-          ease: "power3.out",
-        },
-      );
+      gsap.utils.toArray<HTMLElement>(".reveal-card").forEach((card, index) => {
+        gsap.set(card, {
+          transformPerspective: 1200,
+          transformOrigin: "center top",
+        });
+
+        gsap.fromTo(
+          card,
+          { opacity: 0, y: 40, rotateX: -10 },
+          {
+            opacity: 1,
+            y: 0,
+            rotateX: 0,
+            duration: 0.85,
+            delay: index < 4 ? index * 0.06 : 0,
+            ease: "power3.out",
+            scrollTrigger: {
+              trigger: card,
+              start: "top 88%",
+              once: true,
+            },
+            onComplete: () => {
+              gsap.set(card, { clearProps: "transform" });
+            },
+          },
+        );
+      });
+
+      gsap.to(".hero-float", {
+        y: (index) => (index % 2 === 0 ? -10 : 10),
+        duration: 3.6,
+        ease: "sine.inOut",
+        repeat: -1,
+        yoyo: true,
+        stagger: 0.18,
+      });
+
+      gsap.to(".ambient-orb", {
+        yPercent: (index) => (index % 2 === 0 ? -5 : 6),
+        xPercent: (index) => (index === 1 ? -4 : 4),
+        duration: 10,
+        ease: "sine.inOut",
+        repeat: -1,
+        yoyo: true,
+        stagger: 0.35,
+      });
 
       gsap.fromTo(
         ".adaptive-defense-result",
@@ -92,6 +215,11 @@ export default function App() {
           y: 0,
           duration: 0.7,
           ease: "power2.out",
+          scrollTrigger: {
+            trigger: ".adaptive-defense-result",
+            start: "top 88%",
+            once: true,
+          },
         },
       );
     }, dashboardRef);
@@ -125,14 +253,61 @@ export default function App() {
     [summary?.pii_totals],
   );
 
+  const familyOptions = useMemo(
+    () => Array.from(new Set(incidents.map((incident) => incident.family))).sort(),
+    [incidents],
+  );
+
+  const filteredIncidents = useMemo(
+    () =>
+      selectedFamily
+        ? incidents.filter((incident) => incident.family === selectedFamily)
+        : incidents,
+    [incidents, selectedFamily],
+  );
+
+  const filteredRecentRecords = useMemo(
+    () =>
+      summary?.recent_records.filter(
+        (record) => !selectedFamily || record.incident_family === selectedFamily,
+      ) ?? [],
+    [selectedFamily, summary?.recent_records],
+  );
+
+  useEffect(() => {
+    if (!selectedIncident) {
+      return;
+    }
+
+    const refreshedIncident = incidents.find(
+      (incident) => incident.incident_id === selectedIncident.incident_id,
+    );
+
+    if (!refreshedIncident) {
+      setSelectedIncident(null);
+      setIncidentRecords([]);
+      return;
+    }
+
+    if (selectedFamily && refreshedIncident.family !== selectedFamily) {
+      setSelectedIncident(null);
+      setIncidentRecords([]);
+      return;
+    }
+
+    setSelectedIncident(refreshedIncident);
+  }, [incidents, selectedFamily, selectedIncident]);
+
+  const visibleRecords = selectedIncident ? incidentRecords : filteredRecentRecords;
+
   if (loading && !summary) {
     return (
-      <main className="min-h-screen bg-[#05070f] px-6 py-10 text-ink">
-        <div className="mx-auto max-w-7xl animate-pulse rounded-[36px] border border-white/5 bg-panel/60 p-10 shadow-glass">
-          <div className="h-16 rounded-3xl bg-white/5" />
+      <main className="min-h-screen bg-[#f7efe3] px-6 py-10 text-ink">
+        <div className="mx-auto max-w-7xl animate-pulse rounded-[36px] border border-borderGlass/10 bg-panel/60 p-10 shadow-glass">
+          <div className="h-16 rounded-3xl bg-panelSoft/80" />
           <div className="mt-8 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
             {Array.from({ length: 4 }).map((_, index) => (
-              <div key={index} className="h-40 rounded-[28px] bg-white/5" />
+              <div key={index} className="h-40 rounded-[28px] bg-panelSoft/80" />
             ))}
           </div>
         </div>
@@ -142,7 +317,7 @@ export default function App() {
 
   if (!summary) {
     return (
-      <main className="min-h-screen bg-[#05070f] px-6 py-10 text-ink">
+      <main className="min-h-screen bg-[#f7efe3] px-6 py-10 text-ink">
         <div className="mx-auto max-w-4xl rounded-[36px] border border-danger/25 bg-panel/80 p-10 shadow-glass">
           <p className="text-sm uppercase tracking-[0.3em] text-danger">Dashboard unavailable</p>
           <h1 className="mt-4 font-display text-4xl font-semibold">Could not load telemetry.</h1>
@@ -150,7 +325,7 @@ export default function App() {
           <button
             type="button"
             onClick={() => void refresh()}
-            className="mt-8 rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm uppercase tracking-[0.25em] text-ink transition hover:bg-white/10"
+            className="action-button mt-8 rounded-full border border-borderGlass/15 bg-panelSoft/80 px-5 py-3 text-sm uppercase tracking-[0.25em] text-ink transition hover:bg-panelSoft"
           >
             Retry
           </button>
@@ -159,27 +334,63 @@ export default function App() {
     );
   }
 
+  const latestRecord = summary.recent_records[0];
+
+  async function handleIncidentSelection(incident: Incident) {
+    if (selectedIncident?.incident_id === incident.incident_id) {
+      setSelectedIncident(null);
+      setIncidentRecords([]);
+      return;
+    }
+
+    setSelectedFamily(incident.family);
+    setSelectedIncident(incident);
+    setIncidentLoading(true);
+
+    try {
+      const response = await getIncidentRecords(incident.incident_id);
+      setIncidentRecords(response.records);
+      window.requestAnimationFrame(() => {
+        feedSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    } finally {
+      setIncidentLoading(false);
+    }
+  }
+
+  function handleFamilyChange(family: string | null) {
+    setSelectedFamily(family);
+    if (!family || selectedIncident?.family !== family) {
+      setSelectedIncident(null);
+      setIncidentRecords([]);
+    }
+  }
+
   return (
     <main
       ref={dashboardRef}
-      className="min-h-screen bg-[#05070f] bg-grid bg-[length:54px_54px] px-4 py-4 font-body text-ink md:px-6 md:py-6"
+      className="dashboard-shell min-h-screen bg-[#f7efe3] bg-grid bg-[length:54px_54px] px-4 py-4 font-body text-ink md:px-6 md:py-6"
     >
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="absolute left-[-12%] top-[-8%] h-80 w-80 rounded-full bg-[radial-gradient(circle_at_center,rgba(53,201,204,0.25),transparent_68%)] blur-3xl" />
-        <div className="absolute right-[-8%] top-[14%] h-[28rem] w-[28rem] rounded-full bg-[radial-gradient(circle_at_center,rgba(255,106,72,0.18),transparent_70%)] blur-3xl" />
-        <div className="absolute bottom-[-10%] left-[12%] h-72 w-72 rounded-full bg-[radial-gradient(circle_at_center,rgba(122,167,255,0.18),transparent_68%)] blur-3xl" />
+        <div className="ambient-orb absolute left-[-12%] top-[-8%] h-80 w-80 rounded-full bg-[radial-gradient(circle_at_center,rgba(53,201,204,0.16),transparent_68%)] blur-3xl" />
+        <div className="ambient-orb absolute right-[-8%] top-[14%] h-[28rem] w-[28rem] rounded-full bg-[radial-gradient(circle_at_center,rgba(255,106,72,0.12),transparent_70%)] blur-3xl" />
+        <div className="ambient-orb absolute bottom-[-10%] left-[12%] h-72 w-72 rounded-full bg-[radial-gradient(circle_at_center,rgba(255,191,87,0.14),transparent_68%)] blur-3xl" />
       </div>
 
       <div className="relative mx-auto flex max-w-7xl flex-col gap-5">
-        <section className="reveal-card overflow-hidden rounded-[34px] border border-borderGlass bg-[linear-gradient(135deg,rgba(14,20,39,0.95),rgba(9,12,24,0.82))] p-6 shadow-glass backdrop-blur-xl md:p-8">
+        <section className="reveal-card overflow-hidden rounded-[34px] border border-borderGlass/15 bg-[linear-gradient(135deg,rgba(255,251,245,0.94),rgba(243,230,214,0.9))] p-6 shadow-glass backdrop-blur-xl md:p-8">
           <div className="flex flex-col gap-8 xl:flex-row xl:items-end xl:justify-between">
             <div className="max-w-3xl">
-              <div className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2 text-xs uppercase tracking-[0.28em] text-muted">
+              <div className="interactive-chip inline-flex items-center gap-3 rounded-full border border-borderGlass/15 bg-white/55 px-4 py-2 text-xs uppercase tracking-[0.28em] text-muted">
                 <Shield size={14} />
-                Secure AI Interaction Layer
+                SUDARSHAN Secure AI Interaction Layer
               </div>
-              <h1 className="mt-6 max-w-4xl font-display text-4xl font-semibold leading-tight md:text-5xl">
-                AI firewall dashboard for SQL and multimodal attack telemetry.
+              <h1
+                className={`mt-6 max-w-4xl min-h-[3.6em] font-display text-4xl font-semibold leading-tight md:min-h-[3.1em] md:text-5xl ${
+                  heroTypingDone ? "" : "type-caret"
+                }`}
+              >
+                {typedHeadline}
               </h1>
               <p className="mt-5 max-w-3xl text-base leading-8 text-muted md:text-lg">
                 Live middleware observability for prompt injection, session replay anomalies,
@@ -188,11 +399,11 @@ export default function App() {
             </div>
 
             <div className="grid gap-4 md:grid-cols-3 xl:min-w-[28rem]">
-              <div className="rounded-[28px] border border-white/10 bg-white/[0.05] p-5">
+              <div className="hero-float rounded-[28px] border border-borderGlass/12 bg-panelSoft/80 p-5">
                 <p className="text-[0.68rem] uppercase tracking-[0.32em] text-muted">Socket</p>
                 <div className="mt-4 flex items-center gap-3">
                   <span
-                    className={`h-3 w-3 rounded-full ${connected ? "bg-success shadow-[0_0_20px_rgba(117,255,169,0.8)]" : "bg-danger shadow-[0_0_18px_rgba(255,106,72,0.8)]"}`}
+                    className={`status-dot h-3 w-3 rounded-full ${connected ? "bg-success shadow-[0_0_20px_rgba(117,255,169,0.8)]" : "bg-danger shadow-[0_0_18px_rgba(255,106,72,0.8)]"}`}
                   />
                   <span className="font-display text-2xl font-semibold">
                     {connected ? "Live" : "Reconnecting"}
@@ -200,14 +411,14 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="rounded-[28px] border border-white/10 bg-white/[0.05] p-5">
+              <div className="hero-float rounded-[28px] border border-borderGlass/12 bg-panelSoft/80 p-5">
                 <p className="text-[0.68rem] uppercase tracking-[0.32em] text-muted">Provider</p>
                 <p className="mt-4 font-display text-2xl font-semibold capitalize">
                   {highlights.currentProvider}
                 </p>
               </div>
 
-              <div className="rounded-[28px] border border-white/10 bg-white/[0.05] p-5">
+              <div className="hero-float rounded-[28px] border border-borderGlass/12 bg-panelSoft/80 p-5">
                 <p className="text-[0.68rem] uppercase tracking-[0.32em] text-muted">Active Score</p>
                 <p className="mt-4 font-display text-2xl font-semibold">{highlights.activeThreatScore}</p>
               </div>
@@ -246,8 +457,29 @@ export default function App() {
           />
         </section>
 
+        <HumanReviewPanel
+          status={adaptiveStatus}
+          compiledReport={compiledReport}
+          recommendations={policyRecommendations}
+          reportLoading={reportCompiling}
+          recommendationLoading={recommendationLoading}
+          usingDemoData={usingDemoData}
+          onAnalyzeReport={analyzeAttackReport}
+          onRefreshRecommendations={refreshPolicyRecommendations}
+        />
+
+        <div className="adaptive-defense-result">
+          <AdaptiveDefensePanel
+            input={adaptiveInput}
+            result={adaptiveSimulation}
+            loading={adaptiveSimulating}
+            onInputChange={setAdaptiveInput}
+            onRun={runAdaptiveSimulation}
+          />
+        </div>
+
         <section className="grid gap-5 xl:grid-cols-[1.15fr_0.85fr]">
-          <div className="reveal-card rounded-[28px] border border-borderGlass bg-panel/80 p-5 shadow-glass backdrop-blur-xl">
+          <div className="reveal-card rounded-[28px] border border-borderGlass/14 bg-panel/80 p-5 shadow-glass backdrop-blur-xl">
             <div className="mb-5 flex items-center justify-between">
               <div>
                 <p className="text-[0.68rem] uppercase tracking-[0.35em] text-muted">Attack Curve</p>
@@ -255,7 +487,7 @@ export default function App() {
                   Threat score over time
                 </h3>
               </div>
-              <div className="rounded-full border border-white/10 px-3 py-1 text-xs uppercase tracking-[0.25em] text-muted">
+              <div className="rounded-full border border-borderGlass/12 bg-white/55 px-3 py-1 text-xs uppercase tracking-[0.25em] text-muted">
                 Last {summary.threat_series.length}
               </div>
             </div>
@@ -269,26 +501,22 @@ export default function App() {
                       <stop offset="95%" stopColor="var(--danger)" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid stroke="rgba(255,255,255,0.06)" vertical={false} />
+                  <CartesianGrid stroke={chartGridStroke} vertical={false} />
                   <XAxis
                     dataKey="timestamp"
                     tickFormatter={formatShortTimestamp}
-                    stroke="rgba(216,229,255,0.55)"
+                    stroke={chartAxisStroke}
                     tickLine={false}
                     axisLine={false}
                   />
                   <YAxis
-                    stroke="rgba(216,229,255,0.55)"
+                    stroke={chartAxisStroke}
                     tickLine={false}
                     axisLine={false}
                     domain={[0, 100]}
                   />
                   <Tooltip
-                    contentStyle={{
-                      background: "rgba(10, 16, 30, 0.92)",
-                      border: "1px solid rgba(255,255,255,0.08)",
-                      borderRadius: 18,
-                    }}
+                    contentStyle={chartTooltipStyle}
                     labelFormatter={formatShortTimestamp}
                   />
                   <Area
@@ -307,7 +535,7 @@ export default function App() {
         </section>
 
         <section className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr_0.9fr]">
-          <div className="reveal-card rounded-[28px] border border-borderGlass bg-panel/80 p-5 shadow-glass backdrop-blur-xl">
+          <div className="reveal-card rounded-[28px] border border-borderGlass/14 bg-panel/80 p-5 shadow-glass backdrop-blur-xl">
             <div className="mb-5 flex items-center justify-between">
               <div>
                 <p className="text-[0.68rem] uppercase tracking-[0.35em] text-muted">Risk Mix</p>
@@ -322,7 +550,7 @@ export default function App() {
               <div className="h-60">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
-                    <Pie
+                  <Pie
                       data={riskPie}
                       dataKey="value"
                       nameKey="name"
@@ -335,11 +563,7 @@ export default function App() {
                       ))}
                     </Pie>
                     <Tooltip
-                      contentStyle={{
-                        background: "rgba(10, 16, 30, 0.92)",
-                        border: "1px solid rgba(255,255,255,0.08)",
-                        borderRadius: 18,
-                      }}
+                      contentStyle={chartTooltipStyle}
                     />
                   </PieChart>
                 </ResponsiveContainer>
@@ -349,7 +573,7 @@ export default function App() {
                 {riskPie.map((entry) => (
                   <div
                     key={entry.name}
-                    className="rounded-[20px] border border-white/8 bg-white/[0.04] px-4 py-3"
+                    className="interactive-item rounded-[20px] border border-borderGlass/10 bg-panelSoft/70 px-4 py-3"
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
@@ -369,7 +593,7 @@ export default function App() {
             </div>
           </div>
 
-          <div className="reveal-card rounded-[28px] border border-borderGlass bg-panel/80 p-5 shadow-glass backdrop-blur-xl">
+          <div className="reveal-card rounded-[28px] border border-borderGlass/14 bg-panel/80 p-5 shadow-glass backdrop-blur-xl">
             <div className="mb-5 flex items-center justify-between">
               <div>
                 <p className="text-[0.68rem] uppercase tracking-[0.35em] text-muted">PII Redaction</p>
@@ -381,32 +605,26 @@ export default function App() {
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={piiBars}>
-                  <CartesianGrid stroke="rgba(255,255,255,0.06)" vertical={false} />
+                  <CartesianGrid stroke={chartGridStroke} vertical={false} />
                   <XAxis
                     dataKey="name"
-                    stroke="rgba(216,229,255,0.55)"
+                    stroke={chartAxisStroke}
                     tickLine={false}
                     axisLine={false}
                   />
                   <YAxis
-                    stroke="rgba(216,229,255,0.55)"
+                    stroke={chartAxisStroke}
                     tickLine={false}
                     axisLine={false}
                   />
-                  <Tooltip
-                    contentStyle={{
-                      background: "rgba(10, 16, 30, 0.92)",
-                      border: "1px solid rgba(255,255,255,0.08)",
-                      borderRadius: 18,
-                    }}
-                  />
+                  <Tooltip contentStyle={chartTooltipStyle} />
                   <Bar dataKey="value" radius={[12, 12, 0, 0]} fill="var(--accent)" />
                 </BarChart>
               </ResponsiveContainer>
             </div>
           </div>
 
-          <div className="reveal-card rounded-[28px] border border-borderGlass bg-panel/80 p-5 shadow-glass backdrop-blur-xl">
+          <div className="reveal-card rounded-[28px] border border-borderGlass/14 bg-panel/80 p-5 shadow-glass backdrop-blur-xl">
             <div className="mb-5 flex items-center justify-between">
               <div>
                 <p className="text-[0.68rem] uppercase tracking-[0.35em] text-muted">Top Signals</p>
@@ -421,7 +639,7 @@ export default function App() {
               {summary.top_patterns.map((pattern) => (
                 <div
                   key={pattern.pattern}
-                  className="rounded-[20px] border border-white/8 bg-white/[0.04] px-4 py-3"
+                  className="interactive-item rounded-[20px] border border-borderGlass/10 bg-panelSoft/70 px-4 py-3"
                 >
                   <div className="flex items-center justify-between gap-4">
                     <p className="text-sm leading-6 text-ink">{pattern.pattern}</p>
@@ -435,11 +653,49 @@ export default function App() {
           </div>
         </section>
 
-        <section className="grid gap-5 xl:grid-cols-[1.15fr_0.85fr]">
-          <AttackFeedTable records={summary.recent_records} />
+        <DashboardCopilotPanel
+          loading={copilotLoading}
+          response={copilotResponse}
+          selectedFamily={selectedFamily}
+          selectedIncident={selectedIncident}
+          onSubmit={(question) =>
+            runCopilotQuery(question, {
+              family: selectedFamily,
+              incidentId: selectedIncident?.incident_id ?? null,
+            })
+          }
+        />
+
+        <section
+          ref={feedSectionRef}
+          className="grid gap-5 xl:grid-cols-[1.15fr_0.85fr]"
+        >
+          <AttackFeedTable
+            records={incidentLoading ? [] : visibleRecords}
+            activeIncidentLabel={selectedIncident?.label ?? null}
+            selectedFamily={selectedFamily}
+            highlightedRequestIds={selectedIncident?.related_request_ids ?? []}
+            onClearDrilldown={
+              selectedIncident
+                ? () => {
+                    setSelectedIncident(null);
+                    setIncidentRecords([]);
+                  }
+                : undefined
+            }
+          />
 
           <div className="grid gap-5">
-            <div className="reveal-card rounded-[28px] border border-borderGlass bg-panel/80 p-5 shadow-glass backdrop-blur-xl">
+            <IncidentsPanel
+              incidents={filteredIncidents}
+              familyOptions={familyOptions}
+              selectedFamily={selectedFamily}
+              selectedIncidentId={selectedIncident?.incident_id ?? null}
+              onFamilyChange={handleFamilyChange}
+              onSelectIncident={handleIncidentSelection}
+            />
+
+            <div className="reveal-card rounded-[28px] border border-borderGlass/14 bg-panel/80 p-5 shadow-glass backdrop-blur-xl">
               <div className="mb-5 flex items-center justify-between">
                 <div>
                   <p className="text-[0.68rem] uppercase tracking-[0.35em] text-muted">Sanitiser View</p>
@@ -447,35 +703,69 @@ export default function App() {
                     Before / after
                   </h3>
                 </div>
-                <div className="rounded-full border border-white/10 px-3 py-1 text-xs uppercase tracking-[0.25em] text-muted">
+                <div className="rounded-full border border-borderGlass/12 bg-white/55 px-3 py-1 text-xs uppercase tracking-[0.25em] text-muted">
                   {summary.latest_before_after.action_taken}
                 </div>
               </div>
 
               <div className="grid gap-4">
-                <div className="rounded-[22px] border border-danger/20 bg-danger/10 p-4">
+                <div className="interactive-item rounded-[22px] border border-danger/20 bg-danger/10 p-4">
                   <p className="text-[0.68rem] uppercase tracking-[0.28em] text-danger">Raw input</p>
                   <p className="mt-3 text-sm leading-7 text-ink/90">
                     {summary.latest_before_after.raw_input || "No traffic yet."}
                   </p>
                 </div>
-                <div className="rounded-[22px] border border-accent/20 bg-accent/10 p-4">
+                <div className="interactive-item rounded-[22px] border border-accent/20 bg-accent/10 p-4">
                   <p className="text-[0.68rem] uppercase tracking-[0.28em] text-accent">Sanitised input</p>
                   <p className="mt-3 text-sm leading-7 text-ink/90">
                     {summary.latest_before_after.sanitized_input || "Awaiting sanitised payload."}
                   </p>
                 </div>
-                <div className="rounded-[22px] border border-success/20 bg-success/10 p-4">
+                <div className="interactive-item rounded-[22px] border border-success/20 bg-success/10 p-4">
                   <p className="text-[0.68rem] uppercase tracking-[0.28em] text-success">Sanitised response</p>
                   <p className="mt-3 text-sm leading-7 text-ink/90">
                     {summary.latest_before_after.sanitized_response ||
                       "Blocked requests stop before provider execution."}
                   </p>
                 </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="interactive-item rounded-[22px] border border-borderGlass/10 bg-panelSoft/70 p-4">
+                    <p className="text-[0.68rem] uppercase tracking-[0.28em] text-muted">
+                      Intent routing
+                    </p>
+                    <p className="mt-3 font-display text-xl text-ink">
+                      {latestRecord?.sql_intent_token || "UNKNOWN_INTENT"}
+                    </p>
+                    <p className="mt-2 text-sm text-muted">
+                      {latestRecord?.intent_source || "rule"} with{" "}
+                      {formatIntentConfidence(latestRecord?.intent_confidence)} confidence
+                    </p>
+                  </div>
+
+                  <div className="interactive-item rounded-[22px] border border-borderGlass/10 bg-panelSoft/70 p-4">
+                    <p className="text-[0.68rem] uppercase tracking-[0.28em] text-muted">
+                      Firewall explanation
+                    </p>
+                    <p className="mt-3 text-sm leading-7 text-ink/90">
+                      {latestRecord?.block_explanation ||
+                        "Latest request passed normally, so no human-readable block explanation was needed."}
+                    </p>
+                  </div>
+                </div>
+
+                {latestRecord?.safe_rewrite ? (
+                  <div className="interactive-item rounded-[22px] border border-accent/20 bg-accent/10 p-4">
+                    <p className="text-[0.68rem] uppercase tracking-[0.28em] text-accent">
+                      Suggested safe rewrite
+                    </p>
+                    <p className="mt-3 text-sm leading-7 text-ink/90">{latestRecord.safe_rewrite}</p>
+                  </div>
+                ) : null}
               </div>
             </div>
 
-            <div className="reveal-card rounded-[28px] border border-borderGlass bg-panel/80 p-5 shadow-glass backdrop-blur-xl">
+            <div className="reveal-card rounded-[28px] border border-borderGlass/14 bg-panel/80 p-5 shadow-glass backdrop-blur-xl">
               <div className="mb-5 flex items-center justify-between">
                 <div>
                   <p className="text-[0.68rem] uppercase tracking-[0.35em] text-muted">Watchlist</p>
@@ -488,14 +778,14 @@ export default function App() {
 
               <div className="space-y-3">
                 {summary.suspicious_sessions.length === 0 ? (
-                  <div className="rounded-[22px] border border-white/8 bg-white/[0.04] px-4 py-6 text-sm text-muted">
+                  <div className="rounded-[22px] border border-borderGlass/10 bg-panelSoft/70 px-4 py-6 text-sm text-muted">
                     No suspicious sessions yet. Launch a red-team scenario to light this panel up.
                   </div>
                 ) : (
                   summary.suspicious_sessions.map((session) => (
                     <div
                       key={session.session_id}
-                      className="rounded-[22px] border border-white/8 bg-white/[0.04] px-4 py-4"
+                      className="interactive-item rounded-[22px] border border-borderGlass/10 bg-panelSoft/70 px-4 py-4"
                     >
                       <div className="flex items-center justify-between gap-3">
                         <div>
@@ -529,7 +819,7 @@ export default function App() {
             onTrigger={triggerSimulation}
           />
 
-          <div className="reveal-card rounded-[28px] border border-borderGlass bg-panel/80 p-5 shadow-glass backdrop-blur-xl">
+          <div className="reveal-card rounded-[28px] border border-borderGlass/14 bg-panel/80 p-5 shadow-glass backdrop-blur-xl">
             <div className="mb-5 flex items-center justify-between">
               <div>
                 <p className="text-[0.68rem] uppercase tracking-[0.35em] text-muted">Latency Monitor</p>
@@ -537,7 +827,7 @@ export default function App() {
                   Middleware overhead
                 </h3>
               </div>
-              <div className="rounded-full border border-white/10 px-3 py-1 text-xs uppercase tracking-[0.25em] text-muted">
+              <div className="rounded-full border border-borderGlass/12 bg-white/55 px-3 py-1 text-xs uppercase tracking-[0.25em] text-muted">
                 Threshold {summary.latency_threshold_ms} ms
               </div>
             </div>
@@ -551,27 +841,20 @@ export default function App() {
                       <stop offset="95%" stopColor="var(--accent)" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid stroke="rgba(255,255,255,0.06)" vertical={false} />
+                  <CartesianGrid stroke={chartGridStroke} vertical={false} />
                   <XAxis
                     dataKey="timestamp"
                     tickFormatter={formatShortTimestamp}
-                    stroke="rgba(216,229,255,0.55)"
+                    stroke={chartAxisStroke}
                     tickLine={false}
                     axisLine={false}
                   />
                   <YAxis
-                    stroke="rgba(216,229,255,0.55)"
+                    stroke={chartAxisStroke}
                     tickLine={false}
                     axisLine={false}
                   />
-                  <Tooltip
-                    contentStyle={{
-                      background: "rgba(10, 16, 30, 0.92)",
-                      border: "1px solid rgba(255,255,255,0.08)",
-                      borderRadius: 18,
-                    }}
-                    labelFormatter={formatShortTimestamp}
-                  />
+                  <Tooltip contentStyle={chartTooltipStyle} labelFormatter={formatShortTimestamp} />
                   <Area
                     type="monotone"
                     dataKey="latency_ms"
@@ -592,16 +875,12 @@ export default function App() {
           </div>
         </section>
 
-        <div className="adaptive-defense-result">
-          <AdaptiveDefensePanel
-            input={adaptiveInput}
-            result={adaptiveSimulation}
-            loading={adaptiveSimulating}
-            onInputChange={setAdaptiveInput}
-            onRun={runAdaptiveSimulation}
-          />
-        </div>
-
+        {usingDemoData ? (
+          <div className="reveal-card rounded-[24px] border border-warning/20 bg-warning/10 px-5 py-4 text-sm text-warning">
+            Backend telemetry was unavailable or empty, so the dashboard is showing demo data and
+            a seeded human-review workflow.
+          </div>
+        ) : null}
         {error ? (
           <div className="reveal-card rounded-[24px] border border-danger/20 bg-danger/10 px-5 py-4 text-sm text-danger">
             {error}
