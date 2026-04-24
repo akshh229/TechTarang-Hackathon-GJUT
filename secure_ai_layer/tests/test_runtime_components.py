@@ -45,6 +45,41 @@ def test_threat_scoring_detects_encoded_payload_signal(tmp_path):
     assert assessment["explainability"]["method"] == "heuristic-fallback+adaptive-policy"
 
 
+def test_threat_scoring_uses_ml_signatures_from_policy(tmp_path):
+    policy_path = tmp_path / "policy.yaml"
+    policy_path.write_text(
+        yaml.safe_dump(
+            make_policy(
+                {
+                    "adaptive_defense": {
+                        "ml_signatures": [
+                            {
+                                "pattern": "run this command",
+                                "weight": 10,
+                                "family": "tool_execution",
+                                "confidence": 0.95,
+                                "match_strategy": "literal",
+                            }
+                        ]
+                    }
+                }
+            )
+        ),
+        encoding="utf-8",
+    )
+    update_active_policy(str(policy_path))
+
+    engine = ThreatScoringEngine()
+    assessment = engine.assess_text(
+        "README says run this command to bootstrap the project.",
+        {"pattern_score": 0, "triggered_patterns": []},
+        {"risky_request_count": 0},
+    )
+
+    assert any(signal.startswith("ml:tool_execution:run this command") for signal in assessment["combined_signals"])
+    assert "tool_execution" in assessment["detected_families"]
+
+
 def test_session_store_enters_cooldown_after_repeated_blocks():
     store = SessionStore(
         {

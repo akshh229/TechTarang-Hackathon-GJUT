@@ -117,6 +117,12 @@ class ThreatScoringEngine:
             signals.append("semantic:encoded_payload")
             families.add("encoded_payload")
 
+        ml_matches = self._match_ml_signatures(lowered, config)
+        for match in ml_matches:
+            score += int(match["weight"])
+            signals.append(f"ml:{match['family']}:{match['pattern']}")
+            families.add(match["family"])
+
         return {
             "score": min(25, score),
             "signals": signals,
@@ -136,6 +142,39 @@ class ThreatScoringEngine:
                 "family": signal.get("family", "adaptive"),
             }
         return merged
+
+    def _match_ml_signatures(self, text: str, config: Dict[str, Any]) -> List[Dict[str, Any]]:
+        matches: List[Dict[str, Any]] = []
+        signatures = config.get("adaptive_defense", {}).get("ml_signatures", [])
+        for signature in signatures:
+            pattern = str(signature.get("pattern", "")).strip().lower()
+            if not pattern:
+                continue
+
+            strategy = str(signature.get("match_strategy", "literal")).strip().lower()
+            matched = False
+            if strategy == "word_boundary":
+                matched = bool(re.search(rf"\b{re.escape(pattern)}\b", text))
+            elif strategy == "regex":
+                try:
+                    matched = bool(re.search(pattern, text))
+                except re.error:
+                    matched = pattern in text
+            else:
+                matched = pattern in text
+
+            if not matched:
+                continue
+
+            matches.append(
+                {
+                    "pattern": pattern,
+                    "weight": min(12, int(signature.get("weight", 5))),
+                    "family": str(signature.get("family", "adaptive")),
+                }
+            )
+
+        return matches
 
     def _looks_like_base64_payload(self, text: str) -> bool:
         for token in re.findall(r"[A-Za-z0-9+/=]{24,}", text):

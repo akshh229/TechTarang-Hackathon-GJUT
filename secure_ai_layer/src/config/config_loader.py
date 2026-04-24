@@ -119,6 +119,28 @@ def validate_config(config: dict) -> tuple[bool, str]:
             if not isinstance(weight, int) or weight <= 0:
                 return False, "Each adaptive defense semantic signal needs a positive integer 'weight'."
 
+        ml_signatures = adaptive_defense.get("ml_signatures", [])
+        if ml_signatures and not isinstance(ml_signatures, list):
+            return False, "Config section 'adaptive_defense.ml_signatures' must be a list."
+        for signature in ml_signatures:
+            if not isinstance(signature, dict):
+                return False, "Each adaptive defense ML signature must be a mapping."
+            pattern = signature.get("pattern")
+            weight = signature.get("weight")
+            if not isinstance(pattern, str) or not pattern.strip():
+                return False, "Each adaptive defense ML signature needs a non-empty 'pattern'."
+            if not isinstance(weight, int) or weight <= 0:
+                return False, "Each adaptive defense ML signature needs a positive integer 'weight'."
+
+        response_playbooks = adaptive_defense.get("response_playbooks", [])
+        if response_playbooks and not isinstance(response_playbooks, list):
+            return False, "Config section 'adaptive_defense.response_playbooks' must be a list."
+        for playbook in response_playbooks:
+            if not isinstance(playbook, dict):
+                return False, "Each adaptive defense response playbook must be a mapping."
+            if not isinstance(playbook.get("action"), str) or not playbook.get("action", "").strip():
+                return False, "Each adaptive defense response playbook needs a non-empty 'action'."
+
     return True, ""
 
 def load_yaml_config(filepath: str) -> dict:

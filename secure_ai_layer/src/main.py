@@ -417,6 +417,47 @@ async def process_interaction(
     }
 
 
+def simulate_adaptive_defense(
+    message: str,
+    session_id: Optional[str] = None,
+) -> Dict[str, Any]:
+    config = get_policy_config()
+    session_store.refresh_config(config)
+
+    resolved_session_id = session_id or "adaptive-defense-simulation"
+    preflight = session_store.preflight(resolved_session_id)
+    inspection = sanitizer.inspect_text(message)
+    assessment = threat_engine.assess_text(message, inspection, preflight)
+    sql_intent = planner.classify_intent(message)
+
+    adaptive = config.get("adaptive_defense", {})
+    active_families = set(adaptive.get("active_families", []))
+    detected_families = assessment.get("detected_families", [])
+    matched_families = [family for family in detected_families if family in active_families]
+    relevant_playbooks = [
+        playbook
+        for playbook in adaptive.get("response_playbooks", [])
+        if playbook.get("family") in matched_families or playbook.get("family") in detected_families
+    ]
+
+    return {
+        "message_preview": clip_text(message),
+        "sanitized_input_preview": clip_text(inspection["sanitized_text"]),
+        "would_block": assessment["action_taken"] == "BLOCK" or preflight.get("cooldown_active", False),
+        "risk_level": assessment["risk_level"],
+        "action_taken": "BAN" if preflight.get("cooldown_active", False) else assessment["action_taken"],
+        "threat_score": assessment["threat_score"],
+        "score_breakdown": assessment["score_breakdown"],
+        "signals": assessment["combined_signals"],
+        "detected_families": detected_families,
+        "matched_active_families": matched_families,
+        "recommended_playbooks": relevant_playbooks,
+        "sql_intent_token": sql_intent,
+        "session_state": preflight,
+        "model_backend": adaptive.get("model_backend", "lexical-fallback"),
+    }
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     policy_path = get_policy_path()
@@ -478,6 +519,11 @@ class AttackReportRequest(BaseModel):
     payload_examples: List[str] = Field(default_factory=list)
     references: List[str] = Field(default_factory=list)
     apply_changes: bool = False
+
+
+class AdaptiveDefenseSimulationRequest(BaseModel):
+    message: str = Field(min_length=1, max_length=20000)
+    session_id: Optional[str] = None
 
 
 @app.get("/")
@@ -606,6 +652,11 @@ def compile_attack_report(payload: AttackReportRequest) -> Dict[str, Any]:
     if payload.apply_changes:
         compiled = attack_report_compiler.apply_report(compiled, get_policy_path())
     return compiled
+
+
+@app.post("/adaptive-defense/simulate")
+def simulate_adaptive_defense_endpoint(payload: AdaptiveDefenseSimulationRequest) -> Dict[str, Any]:
+    return simulate_adaptive_defense(payload.message, payload.session_id)
 
 
 @app.get("/ai-report")

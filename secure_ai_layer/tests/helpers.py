@@ -34,6 +34,24 @@ BASE_POLICY: Dict[str, Any] = {
             {"pattern": "run this command", "weight": 10, "family": "tool_execution"},
             {"pattern": "save to memory", "weight": 8, "family": "memory_poisoning"},
         ],
+        "ml_signatures": [
+            {
+                "pattern": "curl | sh",
+                "weight": 10,
+                "family": "tool_execution",
+                "confidence": 0.92,
+                "match_strategy": "word_boundary",
+                "source": "seed_policy",
+            }
+        ],
+        "response_playbooks": [
+            {
+                "family": "tool_execution",
+                "action": "block_and_log",
+                "reason": "Block repository-sourced command execution attempts.",
+            }
+        ],
+        "model_backend": "seed-policy",
     },
     "session_policy": {
         "suspicious_window_seconds": 300,

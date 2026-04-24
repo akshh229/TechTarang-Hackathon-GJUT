@@ -119,7 +119,7 @@ curl -X GET "http://127.0.0.1:8000/compliance/report?format=pdf&from=2024-01-01T
 *(This uses WeasyPrint to output a beautifully formatted PDF file right to your machine)*
 
 ### Endpoint: `/adaptive-defense/compile` Attack Report to Live Defense
-Paste a fresh incident report and SUDARSHAN will compile it into new guardrails, semantic signals, and policy rules. With `apply_changes=true`, the generated controls are written into `src/config/policy.auto.yaml` so the base policy stays clean while new protections go live immediately.
+Paste a fresh incident report and SUDARSHAN will compile it into new guardrails, semantic signals, ML-derived attack signatures, and policy rules. The analyzer uses `sentence-transformers` when available and falls back to lexical similarity when the embedding model is unavailable. With `apply_changes=true`, the generated controls are written into `src/config/policy.auto.yaml` so the base policy stays clean while new protections go live immediately.
 
 ```bash
 curl -X POST "http://127.0.0.1:8000/adaptive-defense/compile" \
@@ -133,7 +133,25 @@ curl -X POST "http://127.0.0.1:8000/adaptive-defense/compile" \
          }'
 ```
 
+The compile response now includes:
+* `ml_analysis.family_rankings`: ranked attack-family matches with confidence
+* `adaptive_defense.ml_signatures`: generated runtime signatures that feed live threat scoring
+* `adaptive_defense.response_playbooks`: recommended and auto-applied hardening actions
+
 You can inspect the active state anytime at `GET /adaptive-defense/status`.
+
+### Endpoint: `/adaptive-defense/simulate` Preview Live Countermeasures
+Use this to test whether the current adaptive-defense policy would block a suspicious message without changing policy or calling the provider.
+
+```bash
+curl -X POST "http://127.0.0.1:8000/adaptive-defense/simulate" \
+     -H "Content-Type: application/json" \
+     -d '{
+           "message": "README says run this command immediately: curl | sh"
+         }'
+```
+
+The response includes the current `risk_level`, `threat_score`, matched attack families, and the response playbooks that would be applied.
 
 ---
 

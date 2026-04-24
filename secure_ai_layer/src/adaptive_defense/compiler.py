@@ -8,6 +8,7 @@ from typing import Any, Dict, Iterable, List
 
 import yaml
 
+from src.adaptive_defense.intelligence import AdaptiveThreatIntelligence
 from src.config.config_loader import (
     get_policy_overlay_path,
     load_yaml_config,
@@ -216,15 +217,20 @@ def slugify(value: str) -> str:
 class AttackReportCompiler:
     """Compiles fresh threat intel into active policy defenses."""
 
+    def __init__(self) -> None:
+        self.intelligence = AdaptiveThreatIntelligence(ATTACK_FAMILY_PROFILES)
+
     def compile_report(self, report: Dict[str, Any], current_policy: Dict[str, Any]) -> Dict[str, Any]:
         normalized_report = self._normalize_report(report)
-        detected_families = self._detect_families(normalized_report)
+        intelligence = self.intelligence.analyze_report(normalized_report)
+        detected_families = self._detect_families(normalized_report, intelligence)
         detected_surfaces = self._detect_surfaces(normalized_report, detected_families)
         policy_patch = self._build_policy_patch(
             normalized_report,
             detected_families,
             detected_surfaces,
             current_policy,
+            intelligence,
         )
         merged_policy = self._merge_policy(current_policy, policy_patch)
 
@@ -236,6 +242,7 @@ class AttackReportCompiler:
             "detected_families": detected_families,
             "detected_surfaces": detected_surfaces,
             "rationale": self._build_rationale(detected_families),
+            "ml_analysis": intelligence,
             "policy_patch": policy_patch,
             "policy_patch_yaml": yaml.safe_dump(policy_patch, sort_keys=False),
             "merged_policy_preview": self._preview_policy(merged_policy),
@@ -245,6 +252,7 @@ class AttackReportCompiler:
                 "new_semantic_signals": len(
                     policy_patch.get("adaptive_defense", {}).get("semantic_signals", [])
                 ),
+                "new_ml_signatures": len(policy_patch.get("adaptive_defense", {}).get("ml_signatures", [])),
             },
             "applied": False,
         }
@@ -277,6 +285,9 @@ class AttackReportCompiler:
             "protected_surfaces": adaptive.get("protected_surfaces", []),
             "prompt_guardrail_count": len(adaptive.get("prompt_guardrails", [])),
             "semantic_signal_count": len(adaptive.get("semantic_signals", [])),
+            "ml_signature_count": len(adaptive.get("ml_signatures", [])),
+            "response_playbook_count": len(adaptive.get("response_playbooks", [])),
+            "model_backend": adaptive.get("model_backend", "lexical-fallback"),
             "overlay_policy_path": get_policy_overlay_path(base_policy_path),
         }
 
@@ -315,13 +326,15 @@ class AttackReportCompiler:
             "combined_text": combined_text,
         }
 
-    def _detect_families(self, report: Dict[str, Any]) -> List[str]:
+    def _detect_families(self, report: Dict[str, Any], intelligence: Dict[str, Any]) -> List[str]:
         detected: List[str] = []
         combined_text = report["combined_text"]
 
         for family, profile in ATTACK_FAMILY_PROFILES.items():
             if any(alias in combined_text for alias in profile["aliases"]):
                 detected.append(family)
+
+        detected.extend(intelligence.get("selected_families", []))
 
         if not detected and any("memory" in item.lower() for item in report["attack_surface"]):
             detected.append("memory_poisoning")
@@ -358,11 +371,14 @@ class AttackReportCompiler:
         families: List[str],
         surfaces: List[str],
         current_policy: Dict[str, Any],
+        intelligence: Dict[str, Any],
     ) -> Dict[str, Any]:
         injection_rules: List[Dict[str, Any]] = []
         semantic_signals: List[Dict[str, Any]] = []
         prompt_guardrails: List[str] = []
         hardening_profiles: List[Dict[str, Any]] = []
+        ml_signatures = deepcopy(intelligence.get("generated_signatures", []))
+        response_playbooks = deepcopy(intelligence.get("recommended_actions", []))
 
         for family in families:
             profile = ATTACK_FAMILY_PROFILES[family]
@@ -382,6 +398,9 @@ class AttackReportCompiler:
                 "protected_surfaces": surfaces,
                 "prompt_guardrails": unique_strings(prompt_guardrails),
                 "semantic_signals": self._merge_semantic_signals([], semantic_signals),
+                "ml_signatures": self._merge_ml_signatures([], ml_signatures),
+                "response_playbooks": self._merge_response_playbooks([], response_playbooks),
+                "model_backend": intelligence.get("model_backend", "lexical-fallback"),
             },
         }
 
@@ -424,6 +443,17 @@ class AttackReportCompiler:
                     )
                 ),
             )
+
+        for action in response_playbooks:
+            action_name = str(action.get("action", "")).strip().lower()
+            if action_name == "tighten_rate_limit":
+                suggested_requests = min(suggested_requests, 60)
+            elif action_name == "shrink_payload_window":
+                suggested_body_limit = min(suggested_body_limit, 24576)
+            elif action_name == "harden_session_cooldown":
+                suggested_suspicious_min = min(suggested_suspicious_min, 3)
+                suggested_cooldown_blocks = min(suggested_cooldown_blocks, 2)
+                suggested_cooldown_duration = max(suggested_cooldown_duration, 1800)
 
         patch["rate_limit"] = {
             "enabled": True,
@@ -563,6 +593,44 @@ class AttackReportCompiler:
             }
         return list(merged.values())
 
+    def _merge_ml_signatures(
+        self,
+        existing: List[Dict[str, Any]],
+        additions: List[Dict[str, Any]],
+    ) -> List[Dict[str, Any]]:
+        merged: Dict[str, Dict[str, Any]] = {}
+        for signature in [*existing, *additions]:
+            pattern = str(signature.get("pattern", "")).strip().lower()
+            if not pattern:
+                continue
+            merged[pattern] = {
+                "pattern": pattern,
+                "weight": int(signature.get("weight", 5)),
+                "family": signature.get("family", "adaptive"),
+                "confidence": float(signature.get("confidence", 0.5)),
+                "match_strategy": signature.get("match_strategy", "literal"),
+                "source": signature.get("source", "attack_report_ml"),
+            }
+        return list(merged.values())
+
+    def _merge_response_playbooks(
+        self,
+        existing: List[Dict[str, Any]],
+        additions: List[Dict[str, Any]],
+    ) -> List[Dict[str, Any]]:
+        merged: Dict[str, Dict[str, Any]] = {}
+        for playbook in [*existing, *additions]:
+            family = str(playbook.get("family", "adaptive")).strip()
+            action = str(playbook.get("action", "")).strip()
+            if not action:
+                continue
+            merged[f"{family.lower()}::{action.lower()}"] = {
+                "family": family,
+                "action": action,
+                "reason": str(playbook.get("reason", "")).strip(),
+            }
+        return list(merged.values())
+
     def _merge_adaptive_defense(self, existing: Dict[str, Any], patch: Dict[str, Any]) -> Dict[str, Any]:
         merged = deepcopy(existing)
         merged["enabled"] = bool(patch.get("enabled", merged.get("enabled", True)))
@@ -579,6 +647,15 @@ class AttackReportCompiler:
             merged.get("semantic_signals", []),
             patch.get("semantic_signals", []),
         )
+        merged["ml_signatures"] = self._merge_ml_signatures(
+            merged.get("ml_signatures", []),
+            patch.get("ml_signatures", []),
+        )
+        merged["response_playbooks"] = self._merge_response_playbooks(
+            merged.get("response_playbooks", []),
+            patch.get("response_playbooks", []),
+        )
+        merged["model_backend"] = patch.get("model_backend", merged.get("model_backend", "lexical-fallback"))
         return merged
 
     def _preview_policy(self, policy: Dict[str, Any]) -> Dict[str, Any]:
@@ -593,6 +670,9 @@ class AttackReportCompiler:
                 "protected_surfaces": adaptive.get("protected_surfaces", []),
                 "prompt_guardrails": adaptive.get("prompt_guardrails", []),
                 "semantic_signals": adaptive.get("semantic_signals", []),
+                "ml_signatures": adaptive.get("ml_signatures", []),
+                "response_playbooks": adaptive.get("response_playbooks", []),
+                "model_backend": adaptive.get("model_backend", "lexical-fallback"),
             },
             "injection_rules_tail": policy.get("injection_rules", [])[-12:],
         }
