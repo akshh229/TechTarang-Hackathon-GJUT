@@ -88,6 +88,27 @@ export interface Scenario {
   description: string;
 }
 
+export interface AdaptiveDefenseSimulation {
+  message_preview: string;
+  sanitized_input_preview: string;
+  would_block: boolean;
+  risk_level: RiskLevel;
+  action_taken: string;
+  threat_score: number;
+  score_breakdown: ScoreBreakdown;
+  signals: string[];
+  detected_families: string[];
+  matched_active_families: string[];
+  recommended_playbooks: Array<{
+    family: string;
+    action: string;
+    reason: string;
+  }>;
+  sql_intent_token: string;
+  session_state: SessionState & { session_id: string };
+  model_backend: string;
+}
+
 export interface SocketMessage {
   type: "bootstrap" | "telemetry";
   payload: TelemetryRecord | TelemetryRecord[];

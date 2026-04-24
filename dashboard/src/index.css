@@ -35,6 +35,25 @@ body {
   color: rgb(var(--ink));
 }
 
+@keyframes threat-surge {
+  0% {
+    box-shadow: 0 0 0 0 rgb(var(--danger) / 0);
+    transform: translateY(0);
+  }
+  30% {
+    box-shadow: 0 0 0 1px rgb(var(--danger) / 0.22), 0 0 36px rgb(var(--danger) / 0.18);
+    transform: translateY(-2px);
+  }
+  100% {
+    box-shadow: 0 0 0 1px rgb(var(--danger) / 0.1), 0 0 18px rgb(var(--danger) / 0.08);
+    transform: translateY(0);
+  }
+}
+
+.threat-surge {
+  animation: threat-surge 1.15s ease-out;
+}
+
 button,
 input,
 textarea,

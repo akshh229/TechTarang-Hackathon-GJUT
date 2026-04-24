@@ -1,4 +1,9 @@
-import type { DashboardSummary, Scenario, SocketMessage } from "../types";
+import type {
+  AdaptiveDefenseSimulation,
+  DashboardSummary,
+  Scenario,
+  SocketMessage,
+} from "../types";
 
 const apiBaseUrl =
   import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "") ?? "http://127.0.0.1:8000";
@@ -37,6 +42,15 @@ export async function simulateScenario(scenarioId: string): Promise<void> {
   await fetchJson("/demo/simulate", {
     method: "POST",
     body: JSON.stringify({ scenario_id: scenarioId }),
+  });
+}
+
+export async function simulateAdaptiveDefense(
+  message: string,
+): Promise<AdaptiveDefenseSimulation> {
+  return fetchJson<AdaptiveDefenseSimulation>("/adaptive-defense/simulate", {
+    method: "POST",
+    body: JSON.stringify({ message }),
   });
 }
 

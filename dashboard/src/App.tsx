@@ -25,6 +25,7 @@ import {
   YAxis,
 } from "recharts";
 
+import { AdaptiveDefensePanel } from "./components/AdaptiveDefensePanel";
 import { AttackFeedTable } from "./components/AttackFeedTable";
 import { MetricCard } from "./components/MetricCard";
 import { SimulatorPanel } from "./components/SimulatorPanel";
@@ -48,9 +49,14 @@ export default function App() {
     loading,
     error,
     simulatingId,
+    adaptiveSimulation,
+    adaptiveInput,
+    adaptiveSimulating,
     highlights,
     refresh,
     triggerSimulation,
+    runAdaptiveSimulation,
+    setAdaptiveInput,
   } = useSecurityDashboard();
 
   useEffect(() => {
@@ -74,6 +80,18 @@ export default function App() {
           duration: 0.8,
           stagger: 0.08,
           ease: "power3.out",
+        },
+      );
+
+      gsap.fromTo(
+        ".adaptive-defense-result",
+        { opacity: 0.6, scale: 0.98, y: 18 },
+        {
+          opacity: 1,
+          scale: 1,
+          y: 0,
+          duration: 0.7,
+          ease: "power2.out",
         },
       );
     }, dashboardRef);
@@ -573,6 +591,16 @@ export default function App() {
             </div>
           </div>
         </section>
+
+        <div className="adaptive-defense-result">
+          <AdaptiveDefensePanel
+            input={adaptiveInput}
+            result={adaptiveSimulation}
+            loading={adaptiveSimulating}
+            onInputChange={setAdaptiveInput}
+            onRun={runAdaptiveSimulation}
+          />
+        </div>
 
         {error ? (
           <div className="reveal-card rounded-[24px] border border-danger/20 bg-danger/10 px-5 py-4 text-sm text-danger">

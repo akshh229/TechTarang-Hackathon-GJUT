@@ -81,7 +81,7 @@ def _get_embedding_model() -> SentenceTransformer | None:
     if SentenceTransformer is None:
         return None
     try:
-        return SentenceTransformer("all-MiniLM-L6-v2")
+        return SentenceTransformer("all-MiniLM-L6-v2", local_files_only=True)
     except Exception:
         return None
 

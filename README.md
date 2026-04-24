@@ -1,180 +1,424 @@
-# 🛡️ SUDARSHAN for SQL & Multimodal Systems
+# SUDARSHAN
 
-> **Hackathon Submission:** A robust "Zero-Trust" AI Middleware and Security Firewall for Enterprise Databases.
+<p align="center">
+  <strong>Zero-trust AI security middleware for LLM apps, SQL workflows, and multimodal input.</strong>
+</p>
 
-![License](https://img.shields.io/badge/license-MIT-blue.svg)
-![Python](https://img.shields.io/badge/python-3.10%2B-blue)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.104.1-green.svg)
+<p align="center">
+  SUDARSHAN screens prompts before they reach the model, blocks hostile traffic, redacts sensitive output, records audit telemetry, and streams everything into a live operator dashboard.
+</p>
 
-## 📖 Overview
-
-The **SUDARSHAN** serves as an intelligent firewall sitting directly between LLM-based applications and critical enterprise databases. It intercepts, sanitizes, and evaluates incoming LLM prompts to prevent Prompt Injections, Jailbreaks, and malicious SQL injection variants. Once validated, it translates intentions into rigorously parametrized SQL execution and automatically redacts any Sensitive Personal Information (PII) before the LLM can exfiltrate it.
-
-### Core Philosophy: The Zero-Trust "Sandwich" Architecture
-Each request is squeezed through 5 specialized security engines:
-1. **Ingress Sanitization:** Inspects Text, OCR from Images (`pytesseract`), and PDF inputs (`PyMuPDF`) for obfuscated prompt injections and encodes heuristics.
-2. **Dynamic Threat Scoring & Session Anomaly Defense (APT):** Computes a composite 0-100 threat score (pattern severities + semantic anomaly) and leverages a stateful `SessionStore` to detect and ban persistent threat actors over multiple requests. 
-3. **Policy-Driven SQL Planner:** Drops raw LLM logic. Maps predicted intent strictly to pre-approved, parameterized Jinja2 templates.
-4. **Egress PII Redaction:** Cleans outgoing data (e.g., masking Aadhaar, PAN, Emails) via strict regex and spaCy NER.
-5. **Immutable Audit Logging:** Appends rich cryptographic telemetry directly to a WAL-mode SQLite database for indisputable compliance reporting.
+<p align="center">
+  <img src="https://img.shields.io/badge/python-3.10%2B-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python">
+  <img src="https://img.shields.io/badge/FastAPI-Backend-009688?style=for-the-badge&logo=fastapi&logoColor=white" alt="FastAPI">
+  <img src="https://img.shields.io/badge/React-Dashboard-61DAFB?style=for-the-badge&logo=react&logoColor=0b1020" alt="React">
+  <img src="https://img.shields.io/badge/SQLite-Audit%20Log-003B57?style=for-the-badge&logo=sqlite&logoColor=white" alt="SQLite">
+</p>
 
 ---
 
-## 🏗️ Project Architecture
+## Why This Project Exists
 
-```mermaid
-graph TD
-    User([User/Client]) -->|Multimodal Prompt| Ingress
-    
-    subgraph Secure Middleware
-        Ingress[Ingress Sanitizer] --> |Text Extraction & Input Check| ThreatScoring((Threat Scoring Engine))
-        ThreatScoring --> |Score > Threshold: Reject| Error
-        ThreatScoring --> |Score < Threshold: Route| Planner
-        
-        Planner[SQL Planner] --> |Extract Intent + Params| Templates[(Policy YAML)]
-        Planner --> |Safe LLM Proxy| Adapter[LLM Adapter]
-        
-        Adapter --> Egress[Egress Redactor]
-        Egress --> |PII Masking| Logger[Audit Logger & Compliance]
-    end
-    
-    Adapter -.-> |Secure Fetch| Database[(Enterprise DB)]
-    Logger --> DB[(audit.db)]
-    
-    Logger -->|Sanitized Result| User
+Most LLM apps still trust the prompt too early.
+
+SUDARSHAN adds a security layer in front of the model. It inspects user input, assigns risk, tracks abusive sessions, limits what reaches the provider, sanitizes what comes back, and gives operators a dashboard that shows what is happening in real time.
+
+This repo now includes both the FastAPI middleware and the React dashboard used to monitor it.
+
+## What We Have Added So Far
+
+| Area | What is working |
+| --- | --- |
+| Secure chat API | `POST /v1/chat/completions` with threat scoring, action routing, and provider control |
+| Ingress defense | Prompt-injection, jailbreak, obfuscation, and suspicious-input screening |
+| Session defense | Suspicious-session tracking, cooldown windows, and temporary bans |
+| Output protection | PII redaction for PAN, Aadhaar, email, and phone |
+| Audit trail | Request hashes, risk labels, signals, latency, compliance tags, and stored telemetry |
+| Adaptive defense | Compile attack reports into runtime signatures, guardrails, and policy overlays |
+| Dashboard APIs | Summary, audit feed, scenarios, compliance export, AI report, and live events |
+| Operator dashboard | Threat charts, attack feed, session watchlist, scenario runner, and adaptive-defense lab |
+
+## Security Flow
+
+```text
+User Input
+   |
+   v
+Ingress Sanitizer
+   |
+   v
+Threat Scoring Engine
+   |
+   +--> BLOCK / BAN --> Audit Log --> Dashboard Event Stream
+   |
+   v
+Session Defense
+   |
+   v
+SQL Intent Classification
+   |
+   v
+LLM Provider Adapter
+   |
+   v
+Egress Redaction
+   |
+   v
+Audit Log + Compliance Tags + Live Dashboard Telemetry
 ```
 
----
+## Feature Highlights
 
-## 🚀 Setup & Installation
+### 1. Prompt and Input Defense
 
-### Prerequisites
+- Screens text before provider execution
+- Detects instruction overrides and known injection phrases
+- Flags encoded or smuggled payloads
+- Supports OCR and PDF-related dependencies already wired into the backend stack
+- Stores raw and sanitized previews for review
 
-You will need the following installed:
-* Python 3.10+
-* Tesseract-OCR (For image processing)
-* SQLite (Comes with Python)
+### 2. Threat Scoring That Explains Itself
 
-### 1. Clone & Setup Environment
+Each request gets:
+
+- a `risk_level` of `GREEN`, `AMBER`, or `RED`
+- a numeric `threat_score`
+- an `action_taken` value such as `PASS`, `FLAG`, `BLOCK`, or `BAN`
+- a score breakdown for pattern match, semantic anomaly, and session replay
+- matched signals and detected attack families
+
+### 3. Session-Aware Abuse Control
+
+- Tracks risky behavior across requests
+- Escalates repeat offenders into suspicious-session state
+- Applies cooldown windows after repeated blocked attempts
+- Returns `429` when a session is temporarily locked down
+
+### 4. Policy-Driven Guardrails
+
+- Loads policy from YAML
+- Watches policy changes at runtime
+- Builds system prompts with active guardrails
+- Classifies request intent before the provider sees it
+- Keeps adaptive changes in a separate overlay policy file
+
+### 5. Multi-Provider Model Routing
+
+SUDARSHAN can route requests through:
+
+- OpenAI
+- Claude
+- Gemini
+- Ollama
+
+The provider can come from policy or be overridden per request.
+
+### 6. Egress Protection
+
+Before a response is returned, the middleware can redact:
+
+- PAN
+- Aadhaar
+- Email addresses
+- Phone numbers
+
+Those redaction counts also show up in stored telemetry and dashboard summaries.
+
+### 7. Adaptive Defense
+
+This is one of the biggest additions in the current build.
+
+The adaptive-defense pipeline can:
+
+- read a fresh attack report
+- rank likely attack families
+- use `sentence-transformers` when a local embedding model is available
+- fall back to lexical matching when it is not
+- generate runtime signatures from indicators and payload examples
+- recommend response playbooks
+- apply changes into `policy.auto.yaml` so the base policy stays clean
+
+Current family coverage includes:
+
+- `indirect_prompt_injection`
+- `tool_execution`
+- `memory_poisoning`
+- `moderation_evasion`
+- `encoded_payload`
+
+### 8. Dashboard and Live Telemetry
+
+The React dashboard now shows:
+
+- live socket status
+- current provider
+- current threat score
+- threat history over time
+- latency trends against threshold
+- risk distribution
+- top trigger patterns
+- PII redaction totals
+- recent attack feed
+- before-and-after sanitization view
+- suspicious-session watchlist
+- built-in red-team scenario launcher
+- adaptive-defense simulation panel
+
+## Project Structure
+
+```text
+TechTarang-Hackathon-GJUT/
+├── secure_ai_layer/
+│   ├── src/
+│   │   ├── adaptive_defense/
+│   │   ├── adapters/
+│   │   ├── audit/
+│   │   ├── compliance/
+│   │   ├── config/
+│   │   ├── dashboard/
+│   │   ├── egress/
+│   │   ├── ingress/
+│   │   ├── policy_engine/
+│   │   ├── security/
+│   │   ├── session_store/
+│   │   ├── sql_planner/
+│   │   ├── threat_scoring/
+│   │   └── main.py
+│   ├── scripts/
+│   ├── tests/
+│   └── requirements.txt
+├── dashboard/
+│   ├── src/
+│   ├── package.json
+│   └── vite.config.ts
+└── README.md
+```
+
+## Quick Start
+
+### 1. Backend
 
 ```bash
-git clone <your-repo-link>
-cd TechTarang-Hackathon-GJUT/secure_ai_layer
+cd secure_ai_layer
 python -m venv venv
+```
 
-# Activate Environment
-# Windows:
+Windows:
+
+```bash
 venv\Scripts\activate
-# macOS/Linux:
-source venv/bin/activate
+```
 
+macOS/Linux:
+
+```bash
+source venv/bin/activate
+```
+
+Install dependencies:
+
+```bash
 pip install -r requirements.txt
 ```
 
-### 2. Configure Environment Variables
-Create a `.env` file in the root `secure_ai_layer` folder:
+Create `.env` inside `secure_ai_layer`:
+
 ```env
-OPENAI_API_KEY=your_key_here
-CLAUDE_API_KEY=optional_key
-GEMINI_API_KEY=optional_key
+OPENAI_API_KEY=your_openai_key
+CLAUDE_API_KEY=your_claude_key
+GEMINI_API_KEY=your_gemini_key
 POLICY_FILE_PATH=src/config/policy.yaml
+AUDIT_DB_PATH=./audit.db
 ```
 
-### 3. Run the AI Firewall Server
+Run the API:
+
 ```bash
 uvicorn src.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
----
+### 2. Dashboard
 
-## 💻 API Endpoints & Testing
+```bash
+cd dashboard
+npm install
+npm run dev
+```
 
-We provide a mock script, `scripts/test_api.py`, to test the complete end-to-end flow. You can also run generic `curl` tests.
+Optional frontend env:
 
-### Endpoint: `/v1/chat/completions` Complete Chat Request
-Perform an end-to-end request verifying prompt translation and egress sanitization:
+```env
+VITE_API_BASE_URL=http://127.0.0.1:8000
+VITE_WS_BASE_URL=ws://127.0.0.1:8000
+```
+
+Build for production:
+
+```bash
+npm run build
+```
+
+## API Overview
+
+### Core endpoints
+
+| Endpoint | Purpose |
+| --- | --- |
+| `GET /` | Health check and service metadata |
+| `POST /v1/chat/completions` | Main secured interaction endpoint |
+| `GET /audit/records` | Recent audit records formatted for the dashboard |
+| `GET /dashboard/summary` | Aggregated telemetry for charts and overview cards |
+| `GET /dashboard/scenarios` | Built-in simulation scenarios |
+| `POST /demo/simulate` | Trigger a predefined red-team scenario |
+| `GET /compliance/report` | Compliance export in JSON or PDF |
+| `GET /adaptive-defense/status` | Current adaptive-defense state |
+| `POST /adaptive-defense/compile` | Convert an attack report into a policy patch |
+| `POST /adaptive-defense/simulate` | Preview how active defenses would treat a payload |
+| `GET /ai-report` | AI-generated summary from recent telemetry |
+| `GET /ws/events` | WebSocket stream for live telemetry |
+
+### Example secured request
 
 ```bash
 curl -X POST "http://127.0.0.1:8000/v1/chat/completions" \
-     -H "Content-Type: application/json" \
-     -d '{
-           "user_message": "Tell me my current account balance",
-           "session_id": "demo_session_1"
-         }'
+  -H "Content-Type: application/json" \
+  -d '{
+    "user_message": "Show me my account balance for today.",
+    "session_id": "demo-session-1",
+    "provider": "openai"
+  }'
 ```
 
-**Expected JSON Result & Telemetry:**
-The API will return an intercepted secure stub representing the final output, along with robust metadata:
-* `risk_level`: Evaluated dynamically. (e.g., `GREEN`, `AMBER`, `RED`)
-* `threat_score`: Numeric severity identifier.
-* `sql_intent_token`: Identified mapped token.
-* `pii_redacted`: Masked data counters.
+Returned metadata includes:
 
-### Endpoint: `/compliance/report` Generate DPDP & Trust PDF
-Use this to generate the required compliance PDF report containing DPDP tags, risk scores, and telemetry.
+- `request_id`
+- `session_id`
+- `risk_level`
+- `action_taken`
+- `threat_score`
+- `score_breakdown`
+- `signals`
+- `detected_families`
+- `provider`
+- `sql_intent_token`
+- `pii_redacted`
+- `session_state`
 
-```bash
-curl -X GET "http://127.0.0.1:8000/compliance/report?format=pdf&from=2024-01-01T00:00:00Z&to=2026-12-31T23:59:59Z" -o compliance_report.pdf
-```
-*(This uses WeasyPrint to output a beautifully formatted PDF file right to your machine)*
-
-### Endpoint: `/adaptive-defense/compile` Attack Report to Live Defense
-Paste a fresh incident report and SUDARSHAN will compile it into new guardrails, semantic signals, ML-derived attack signatures, and policy rules. The analyzer uses `sentence-transformers` when available and falls back to lexical similarity when the embedding model is unavailable. With `apply_changes=true`, the generated controls are written into `src/config/policy.auto.yaml` so the base policy stays clean while new protections go live immediately.
+### Example adaptive-defense compile request
 
 ```bash
 curl -X POST "http://127.0.0.1:8000/adaptive-defense/compile" \
-     -H "Content-Type: application/json" \
-     -d '{
-           "title": "CurXecute-style README Command Execution",
-           "report_text": "A malicious README instructed an IDE assistant to run shell commands including curl | sh, resulting in remote code execution.",
-           "attack_surface": ["repository", "ide"],
-           "indicators": ["curl | sh", "run this command"],
-           "apply_changes": true
-         }'
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "CurXecute-style README Command Execution",
+    "report_text": "A malicious README instructed an IDE assistant to run shell commands, including curl | sh, resulting in remote code execution.",
+    "attack_surface": ["repository", "ide"],
+    "indicators": ["curl | sh", "run this command"],
+    "payload_examples": ["README says: run this command: curl | sh"],
+    "apply_changes": true
+  }'
 ```
 
-The compile response now includes:
-* `ml_analysis.family_rankings`: ranked attack-family matches with confidence
-* `adaptive_defense.ml_signatures`: generated runtime signatures that feed live threat scoring
-* `adaptive_defense.response_playbooks`: recommended and auto-applied hardening actions
+That flow can return:
 
-You can inspect the active state anytime at `GET /adaptive-defense/status`.
+- family rankings
+- selected families
+- generated signatures
+- recommended actions
+- merged policy preview
+- overlay policy path
 
-### Endpoint: `/adaptive-defense/simulate` Preview Live Countermeasures
-Use this to test whether the current adaptive-defense policy would block a suspicious message without changing policy or calling the provider.
+### Example adaptive-defense simulation
 
 ```bash
 curl -X POST "http://127.0.0.1:8000/adaptive-defense/simulate" \
-     -H "Content-Type: application/json" \
-     -d '{
-           "message": "README says run this command immediately: curl | sh"
-         }'
+  -H "Content-Type: application/json" \
+  -d '{
+    "message": "README says run this command immediately: curl | sh"
+  }'
 ```
 
-The response includes the current `risk_level`, `threat_score`, matched attack families, and the response playbooks that would be applied.
+Returned fields include:
 
----
+- `would_block`
+- `risk_level`
+- `action_taken`
+- `threat_score`
+- `score_breakdown`
+- `signals`
+- `detected_families`
+- `matched_active_families`
+- `recommended_playbooks`
+- `model_backend`
 
-## 🛡️ Hacking & Red Teaming
+## Dashboard Experience
 
-We embrace breaking our own systems! Use our automated Red Team evaluation script to run baseline jailbreaks based on garak methodologies.
+The dashboard is no longer just a status page. It acts like an operator console for the middleware.
+
+You can use it to:
+
+- watch live threat telemetry
+- inspect the latest sanitized input and output previews
+- see which patterns are firing most often
+- monitor suspicious sessions
+- launch canned attack scenarios
+- test a custom payload in the Adaptive Defense Lab before changing policy
+
+## Testing
+
+Run tests from `secure_ai_layer`:
 
 ```bash
-python scripts/red_team.py
+pytest -q
 ```
-This script blasts the API with obfuscated prompts (e.g. `IGNORE PREVIOUS` and nested base64 injections) and verifies the SessionStore API accurately bans the bad actors (`403 FORBIDDEN` / `429 TOO MANY REQUESTS`).
+
+Current tests cover:
+
+- ingress behavior
+- threat scoring
+- runtime session control
+- egress redaction
+- compliance reporting
+- dashboard summary and WebSocket updates
+- adaptive-defense compile and simulate flows
+- SQL planner behavior
+
+## Stack
+
+### Backend
+
+- FastAPI
+- Pydantic
+- SQLite
+- PyYAML
+- Watchdog
+- Jinja2
+- WeasyPrint
+- OpenAI SDK
+- sentence-transformers
+- spaCy
+- PyMuPDF
+- pytesseract
+
+### Frontend
+
+- React
+- TypeScript
+- Vite
+- Tailwind CSS
+- Recharts
+- GSAP
+- Lucide React
+
+## Notes
+
+- PDF export depends on `WeasyPrint` being available in the runtime environment.
+- Embedding-based adaptive-defense ranking uses `sentence-transformers` only when the local model is available.
+- If the embedding model is unavailable, the system falls back automatically to lexical ranking.
+- The dashboard runs as a separate React app during development.
 
 ---
 
-## 🧩 Tech Stack
-- **Backend Framework:** FastAPI (Python)
-- **AI Integration:** OpenAI Python SDK
-- **Policy Engine:** PyYAML / Watchdog (Hot reloading)
-- **PII / NLP:** Regex / spaCy
-- **Multimodal (Vision/Docs):** PyMuPDF (`fitz`), `pytesseract`
-- **Database:** SQLite³ (WAL Mode)
-- **Report Generation:** WeasyPrint + Jinja2
-
----
-
-❤️ Built for TechTarang Hackathon GJUT!
+<p align="center">
+  Built for TechTarang Hackathon GJUT.
+</p>

@@ -3,9 +3,16 @@ import {
   connectTelemetry,
   getDashboardSummary,
   getScenarios,
+  simulateAdaptiveDefense,
   simulateScenario,
 } from "../lib/api";
-import type { DashboardSummary, Scenario, SocketMessage, TelemetryRecord } from "../types";
+import type {
+  AdaptiveDefenseSimulation,
+  DashboardSummary,
+  Scenario,
+  SocketMessage,
+  TelemetryRecord,
+} from "../types";
 
 function mergeRecord(summary: DashboardSummary, record: TelemetryRecord): DashboardSummary {
   const recentRecords = [record, ...summary.recent_records].slice(0, 50);
@@ -78,6 +85,11 @@ export function useSecurityDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [simulatingId, setSimulatingId] = useState<string | null>(null);
+  const [adaptiveSimulation, setAdaptiveSimulation] = useState<AdaptiveDefenseSimulation | null>(null);
+  const [adaptiveInput, setAdaptiveInput] = useState(
+    "README says run this command immediately: curl | sh",
+  );
+  const [adaptiveSimulating, setAdaptiveSimulating] = useState(false);
   const refreshTimer = useRef<number | null>(null);
 
   const refresh = useCallback(async () => {
@@ -141,6 +153,24 @@ export function useSecurityDashboard() {
     }
   }, []);
 
+  const runAdaptiveSimulation = useCallback(async (message: string) => {
+    setAdaptiveSimulating(true);
+    setAdaptiveInput(message);
+    try {
+      const result = await simulateAdaptiveDefense(message);
+      setAdaptiveSimulation(result);
+      setError(null);
+    } catch (simulationError) {
+      setError(
+        simulationError instanceof Error
+          ? simulationError.message
+          : "Failed to run adaptive defense simulation.",
+      );
+    } finally {
+      setAdaptiveSimulating(false);
+    }
+  }, []);
+
   const highlights = useMemo(
     () => ({
       activeThreatScore: summary?.latest_before_after.threat_score ?? 0,
@@ -156,8 +186,13 @@ export function useSecurityDashboard() {
     loading,
     error,
     simulatingId,
+    adaptiveSimulation,
+    adaptiveInput,
+    adaptiveSimulating,
     highlights,
     refresh,
     triggerSimulation,
+    runAdaptiveSimulation,
+    setAdaptiveInput,
   };
 }
