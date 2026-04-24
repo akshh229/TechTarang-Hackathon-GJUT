@@ -9,6 +9,8 @@ import yaml
 
 BASE_POLICY: Dict[str, Any] = {
     "llm": {"provider": "openai", "model": "gpt-4.1-mini"},
+    "intent_classifier": {"enabled": True, "model": "gpt-4.1-mini", "min_confidence": 0.72},
+    "explanation_generation": {"enabled": True, "model": "gpt-4.1-mini"},
     "dashboard": {"max_live_events": 50, "latency_threshold_ms": 150},
     "rate_limit": {
         "enabled": True,

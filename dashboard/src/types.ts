@@ -12,6 +12,7 @@ export interface ScoreBreakdown {
   pattern_match: number;
   session_replay: number;
   semantic_anomaly: number;
+  adaptive_family_boost?: number;
 }
 
 export interface TelemetryRecord {
@@ -26,10 +27,15 @@ export interface TelemetryRecord {
   injection_signals: string[];
   score_breakdown: ScoreBreakdown;
   sql_intent_token: string;
+  intent_source?: string;
+  intent_confidence?: number;
   pii_redactions: Record<string, number>;
   input_preview: string;
   sanitized_input_preview: string;
   sanitized_response_preview: string;
+  block_explanation?: string;
+  safe_rewrite?: string;
+  incident_family: string;
   session_state: SessionState;
   compliance_tags: string[];
 }
@@ -48,6 +54,25 @@ export interface SuspiciousSession {
   blocked_request_count: number;
   cooldown_active: boolean;
   cooldown_remaining_seconds: number;
+}
+
+export interface Incident {
+  incident_id: string;
+  label: string;
+  family: string;
+  top_signal: string;
+  first_seen: string;
+  last_seen: string;
+  event_count: number;
+  affected_sessions: number;
+  actions: Record<string, number>;
+  top_signals: Array<{ signal: string; count: number }>;
+  avg_threat_score: number;
+  severity_score: number;
+  sample_input: string;
+  latest_explanation: string;
+  latest_safe_rewrite: string;
+  related_request_ids: string[];
 }
 
 export interface DashboardSummary {
@@ -112,4 +137,44 @@ export interface AdaptiveDefenseSimulation {
 export interface SocketMessage {
   type: "bootstrap" | "telemetry";
   payload: TelemetryRecord | TelemetryRecord[];
+}
+
+export interface IncidentDrilldown {
+  incident_id: string;
+  count: number;
+  records: TelemetryRecord[];
+}
+
+export interface DashboardCopilotMetric {
+  label: string;
+  value: string;
+}
+
+export interface DashboardCopilotRecordCitation {
+  request_id: string;
+  timestamp: string;
+  risk_level: string;
+  action_taken: string;
+  signal: string;
+}
+
+export interface DashboardCopilotIncidentCitation {
+  incident_id: string;
+  label: string;
+  family: string;
+  severity_score: number;
+  event_count: number;
+}
+
+export interface DashboardCopilotResponse {
+  answer: string;
+  supporting_metrics: DashboardCopilotMetric[];
+  cited_records: DashboardCopilotRecordCitation[];
+  cited_incidents: DashboardCopilotIncidentCitation[];
+  suggested_next_actions: string[];
+  grounding: {
+    scope_label: string;
+    record_count: number;
+    incident_count: number;
+  };
 }

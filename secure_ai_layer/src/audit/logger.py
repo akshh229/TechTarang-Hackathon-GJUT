@@ -43,7 +43,12 @@ class AuditLogger:
                     response_hash TEXT,
                     sanitized_response_preview TEXT,
                     compliance_tags TEXT,
-                    latency_ms INTEGER
+                    latency_ms INTEGER,
+                    intent_source TEXT,
+                    intent_confidence REAL,
+                    block_explanation TEXT,
+                    operator_reason TEXT,
+                    safe_rewrite TEXT
                 )
             """)
             self._ensure_columns(conn)
@@ -62,6 +67,11 @@ class AuditLogger:
             "session_state": "TEXT",
             "sanitized_response_preview": "TEXT",
             "compliance_tags": "TEXT",
+            "intent_source": "TEXT",
+            "intent_confidence": "REAL",
+            "block_explanation": "TEXT",
+            "operator_reason": "TEXT",
+            "safe_rewrite": "TEXT",
         }
 
         existing_columns = {
@@ -85,8 +95,9 @@ class AuditLogger:
                     sanitized_input_preview, risk_level, threat_score, injection_signals,
                     score_breakdown, sql_intent_token, provider, action_taken,
                     session_state, pii_redactions, response_hash,
-                    sanitized_response_preview, compliance_tags, latency_ms
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    sanitized_response_preview, compliance_tags, latency_ms,
+                    intent_source, intent_confidence, block_explanation, operator_reason, safe_rewrite
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 request_id,
                 record.get("timestamp", datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")),
@@ -106,7 +117,12 @@ class AuditLogger:
                 record.get("response_hash", ""),
                 record.get("sanitized_response_preview", ""),
                 json.dumps(record.get("compliance_tags", [])),
-                record.get("latency_ms", 0)
+                record.get("latency_ms", 0),
+                record.get("intent_source", "rule"),
+                record.get("intent_confidence", 0.0),
+                record.get("block_explanation", ""),
+                record.get("operator_reason", ""),
+                record.get("safe_rewrite", ""),
             ))
             conn.commit()
         finally:

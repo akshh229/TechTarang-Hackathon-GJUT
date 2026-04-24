@@ -1,14 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   connectTelemetry,
+  getDashboardIncidents,
   getDashboardSummary,
   getScenarios,
+  queryDashboardCopilot,
   simulateAdaptiveDefense,
   simulateScenario,
 } from "../lib/api";
 import type {
   AdaptiveDefenseSimulation,
+  DashboardCopilotResponse,
   DashboardSummary,
+  Incident,
   Scenario,
   SocketMessage,
   TelemetryRecord,
@@ -80,6 +84,7 @@ function mergeRecord(summary: DashboardSummary, record: TelemetryRecord): Dashbo
 
 export function useSecurityDashboard() {
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
+  const [incidents, setIncidents] = useState<Incident[]>([]);
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
   const [connected, setConnected] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -90,15 +95,19 @@ export function useSecurityDashboard() {
     "README says run this command immediately: curl | sh",
   );
   const [adaptiveSimulating, setAdaptiveSimulating] = useState(false);
+  const [copilotResponse, setCopilotResponse] = useState<DashboardCopilotResponse | null>(null);
+  const [copilotLoading, setCopilotLoading] = useState(false);
   const refreshTimer = useRef<number | null>(null);
 
   const refresh = useCallback(async () => {
     try {
-      const [summaryResponse, scenarioResponse] = await Promise.all([
+      const [summaryResponse, incidentsResponse, scenarioResponse] = await Promise.all([
         getDashboardSummary(),
+        getDashboardIncidents(),
         getScenarios(),
       ]);
       setSummary(summaryResponse);
+      setIncidents(incidentsResponse);
       setScenarios(scenarioResponse);
       setError(null);
     } catch (refreshError) {
@@ -171,6 +180,26 @@ export function useSecurityDashboard() {
     }
   }, []);
 
+  const runCopilotQuery = useCallback(
+    async (question: string, options?: { family?: string | null; incidentId?: string | null }) => {
+      setCopilotLoading(true);
+      try {
+        const response = await queryDashboardCopilot(question, options);
+        setCopilotResponse(response);
+        setError(null);
+      } catch (queryError) {
+        setError(
+          queryError instanceof Error
+            ? queryError.message
+            : "Failed to run dashboard copilot query.",
+        );
+      } finally {
+        setCopilotLoading(false);
+      }
+    },
+    [],
+  );
+
   const highlights = useMemo(
     () => ({
       activeThreatScore: summary?.latest_before_after.threat_score ?? 0,
@@ -181,6 +210,7 @@ export function useSecurityDashboard() {
 
   return {
     summary,
+    incidents,
     scenarios,
     connected,
     loading,
@@ -189,10 +219,13 @@ export function useSecurityDashboard() {
     adaptiveSimulation,
     adaptiveInput,
     adaptiveSimulating,
+    copilotResponse,
+    copilotLoading,
     highlights,
     refresh,
     triggerSimulation,
     runAdaptiveSimulation,
+    runCopilotQuery,
     setAdaptiveInput,
   };
 }

@@ -19,10 +19,13 @@ from pydantic import BaseModel, Field
 
 from src.adaptive_defense.compiler import AttackReportCompiler
 from src.adapters.factory import get_provider_adapter
+from src.ai.explanation_generator import ExplanationGenerator, fallback_block_explanation
 from src.audit.logger import AuditLogger
 from src.compliance.reporter import ComplianceReporter
 from src.config.config_loader import get_policy_config, init_config_watcher
 from src.dashboard.broadcaster import EventBroadcaster
+from src.dashboard.copilot import DashboardCopilot
+from src.dashboard.incidents import build_incidents, get_incident_records, infer_incident_family
 from src.egress.redactor import EgressRedactor
 from src.ingress.sanitizer import IngressSanitizer
 from src.security.middleware import (
@@ -46,6 +49,8 @@ redactor = EgressRedactor()
 threat_engine = ThreatScoringEngine()
 compliance_reporter = ComplianceReporter()
 attack_report_compiler = AttackReportCompiler()
+explanation_generator = ExplanationGenerator()
+dashboard_copilot = DashboardCopilot()
 
 
 DEMO_SCENARIOS: Dict[str, Dict[str, str]] = {
@@ -149,10 +154,15 @@ def format_record_for_dashboard(record: Dict[str, Any]) -> Dict[str, Any]:
         "injection_signals": record.get("injection_signals", []),
         "score_breakdown": record.get("score_breakdown", {}),
         "sql_intent_token": record.get("sql_intent_token", "UNKNOWN_INTENT"),
+        "intent_source": record.get("intent_source", "rule"),
+        "intent_confidence": float(record.get("intent_confidence", 0)),
         "pii_redactions": record.get("pii_redactions", {}),
         "input_preview": record.get("input_preview", ""),
         "sanitized_input_preview": record.get("sanitized_input_preview", ""),
         "sanitized_response_preview": record.get("sanitized_response_preview", ""),
+        "block_explanation": record.get("block_explanation", ""),
+        "safe_rewrite": record.get("safe_rewrite", ""),
+        "incident_family": infer_incident_family(record),
         "session_state": {
             "suspicious": session_state.get("suspicious", False),
             "cooldown_active": session_state.get("cooldown_active", False),
@@ -325,12 +335,14 @@ async def process_interaction(
 
     inspection = sanitizer.inspect_text(user_message)
     assessment = threat_engine.assess_text(user_message, inspection, preflight)
-    sql_intent = planner.classify_intent(user_message)
+    intent_result = await planner.classify_intent_with_metadata(user_message, provider_override)
+    sql_intent = intent_result["intent"]
     provider_name, adapter = get_provider_adapter(provider_override)
 
     raw_response = ""
     sanitized_response = ""
     pii_stats = {"pan": 0, "aadhaar": 0, "email": 0, "phone": 0}
+    explanation_payload = None
 
     if assessment["risk_level"] != "RED":
         raw_response = await adapter.complete(
@@ -340,6 +352,31 @@ async def process_interaction(
             temperature=0.2,
         )
         sanitized_response, pii_stats = redactor.redact(raw_response)
+    else:
+        explanation_config = config.get("explanation_generation", {})
+        if explanation_config.get("enabled", True):
+            try:
+                explanation_payload = await explanation_generator.generate(
+                    message=user_message,
+                    sanitized_input=inspection["sanitized_text"],
+                    risk_level=assessment["risk_level"],
+                    threat_score=assessment["threat_score"],
+                    signals=assessment["combined_signals"],
+                    detected_families=assessment.get("detected_families", []),
+                    provider_override=provider_override,
+                    model=explanation_config.get("model") or config.get("llm", {}).get("model"),
+                )
+            except Exception:
+                explanation_payload = None
+
+        if explanation_payload is None:
+            explanation_payload = fallback_block_explanation(
+                message=user_message,
+                risk_level=assessment["risk_level"],
+                threat_score=assessment["threat_score"],
+                signals=assessment["combined_signals"],
+                detected_families=assessment.get("detected_families", []),
+            )
 
     session_state = session_store.record_event(
         resolved_session_id,
@@ -367,6 +404,8 @@ async def process_interaction(
             "injection_signals": assessment["combined_signals"],
             "score_breakdown": assessment["score_breakdown"],
             "sql_intent_token": sql_intent,
+            "intent_source": intent_result["intent_source"],
+            "intent_confidence": intent_result["intent_confidence"],
             "provider": provider_name,
             "action_taken": assessment["action_taken"],
             "session_state": session_state,
@@ -375,6 +414,9 @@ async def process_interaction(
             if sanitized_response
             else "",
             "sanitized_response_preview": response_preview,
+            "block_explanation": explanation_payload.user_reason if explanation_payload else "",
+            "operator_reason": explanation_payload.operator_reason if explanation_payload else "",
+            "safe_rewrite": explanation_payload.safe_rewrite if explanation_payload else "",
             "compliance_tags": compliance_tags_for_record(
                 pii_stats,
                 assessment["risk_level"],
@@ -395,6 +437,11 @@ async def process_interaction(
                 "threat_score": assessment["threat_score"],
                 "signals": assessment["combined_signals"],
                 "detected_families": assessment.get("detected_families", []),
+                "intent_source": intent_result["intent_source"],
+                "intent_confidence": intent_result["intent_confidence"],
+                "block_explanation": explanation_payload.user_reason if explanation_payload else "",
+                "operator_reason": explanation_payload.operator_reason if explanation_payload else "",
+                "safe_rewrite": explanation_payload.safe_rewrite if explanation_payload else "",
             },
         )
 
@@ -411,6 +458,9 @@ async def process_interaction(
             "detected_families": assessment.get("detected_families", []),
             "provider": provider_name,
             "sql_intent_token": sql_intent,
+            "intent_source": intent_result["intent_source"],
+            "intent_confidence": intent_result["intent_confidence"],
+            "extracted_entities": intent_result["extracted_entities"],
             "pii_redacted": sum(pii_stats.values()),
             "session_state": session_state,
         },
@@ -526,6 +576,13 @@ class AdaptiveDefenseSimulationRequest(BaseModel):
     session_id: Optional[str] = None
 
 
+class DashboardCopilotRequest(BaseModel):
+    question: str = Field(min_length=3, max_length=400)
+    family: Optional[str] = Field(default=None, max_length=80)
+    incident_id: Optional[str] = Field(default=None, max_length=40)
+    provider: Optional[str] = None
+
+
 @app.get("/")
 def health_check() -> Dict[str, Any]:
     config = get_policy_config()
@@ -561,6 +618,51 @@ def dashboard_summary(limit: int = Query(200, ge=20, le=500)) -> Dict[str, Any]:
     summary["current_provider"] = config.get("llm", {}).get("provider", "openai")
     summary["latency_threshold_ms"] = config.get("dashboard", {}).get("latency_threshold_ms", 150)
     return summary
+
+
+@app.get("/dashboard/incidents")
+def dashboard_incidents(limit: int = Query(12, ge=1, le=50), source_limit: int = Query(250, ge=20, le=1000)) -> Dict[str, Any]:
+    logger = get_audit_logger()
+    records = logger.get_records(limit=source_limit)
+    incidents = build_incidents(records, limit=limit)
+    return {
+        "count": len(incidents),
+        "incidents": incidents,
+    }
+
+
+@app.get("/dashboard/incidents/{incident_id}/records")
+def dashboard_incident_records(
+    incident_id: str,
+    limit: int = Query(25, ge=1, le=100),
+    source_limit: int = Query(250, ge=20, le=1000),
+) -> Dict[str, Any]:
+    logger = get_audit_logger()
+    records = logger.get_records(limit=source_limit)
+    incident_records = get_incident_records(records, incident_id, limit=limit)
+    if not incident_records:
+        raise HTTPException(status_code=404, detail="Incident not found.")
+    return {
+        "incident_id": incident_id,
+        "count": len(incident_records),
+        "records": [format_record_for_dashboard(record) for record in incident_records],
+    }
+
+
+@app.post("/dashboard/copilot/query")
+async def dashboard_copilot_query(payload: DashboardCopilotRequest) -> Dict[str, Any]:
+    logger = get_audit_logger()
+    records = logger.get_records(limit=250)
+    config = get_policy_config()
+    response = await dashboard_copilot.answer_query(
+        question=payload.question,
+        records=records,
+        family=payload.family,
+        incident_id=payload.incident_id,
+        provider_override=payload.provider,
+        model=config.get("dashboard_copilot", {}).get("model") or config.get("llm", {}).get("model"),
+    )
+    return response.model_dump()
 
 
 @app.get("/dashboard/scenarios")

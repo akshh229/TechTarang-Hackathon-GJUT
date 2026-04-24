@@ -27,6 +27,7 @@ import {
 
 import { AdaptiveDefensePanel } from "./components/AdaptiveDefensePanel";
 import { AttackFeedTable } from "./components/AttackFeedTable";
+import { IncidentsPanel } from "./components/IncidentsPanel";
 import { MetricCard } from "./components/MetricCard";
 import { SimulatorPanel } from "./components/SimulatorPanel";
 import { ThreatGauge } from "./components/ThreatGauge";
@@ -40,10 +41,18 @@ function formatShortTimestamp(timestamp: string) {
   });
 }
 
+function formatIntentConfidence(confidence?: number) {
+  if (typeof confidence !== "number") {
+    return "--";
+  }
+  return `${Math.round(confidence * 100)}%`;
+}
+
 export default function App() {
   const dashboardRef = useRef<HTMLDivElement | null>(null);
   const {
     summary,
+    incidents,
     scenarios,
     connected,
     loading,
@@ -158,6 +167,8 @@ export default function App() {
       </main>
     );
   }
+
+  const latestRecord = summary.recent_records[0];
 
   return (
     <main
@@ -439,6 +450,8 @@ export default function App() {
           <AttackFeedTable records={summary.recent_records} />
 
           <div className="grid gap-5">
+            <IncidentsPanel incidents={incidents} />
+
             <div className="reveal-card rounded-[28px] border border-borderGlass bg-panel/80 p-5 shadow-glass backdrop-blur-xl">
               <div className="mb-5 flex items-center justify-between">
                 <div>
@@ -472,6 +485,40 @@ export default function App() {
                       "Blocked requests stop before provider execution."}
                   </p>
                 </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="rounded-[22px] border border-white/8 bg-white/[0.04] p-4">
+                    <p className="text-[0.68rem] uppercase tracking-[0.28em] text-muted">
+                      Intent routing
+                    </p>
+                    <p className="mt-3 font-display text-xl text-ink">
+                      {latestRecord?.sql_intent_token || "UNKNOWN_INTENT"}
+                    </p>
+                    <p className="mt-2 text-sm text-muted">
+                      {latestRecord?.intent_source || "rule"} with{" "}
+                      {formatIntentConfidence(latestRecord?.intent_confidence)} confidence
+                    </p>
+                  </div>
+
+                  <div className="rounded-[22px] border border-white/8 bg-white/[0.04] p-4">
+                    <p className="text-[0.68rem] uppercase tracking-[0.28em] text-muted">
+                      Firewall explanation
+                    </p>
+                    <p className="mt-3 text-sm leading-7 text-ink/90">
+                      {latestRecord?.block_explanation ||
+                        "Latest request passed normally, so no human-readable block explanation was needed."}
+                    </p>
+                  </div>
+                </div>
+
+                {latestRecord?.safe_rewrite ? (
+                  <div className="rounded-[22px] border border-accent/20 bg-accent/10 p-4">
+                    <p className="text-[0.68rem] uppercase tracking-[0.28em] text-accent">
+                      Suggested safe rewrite
+                    </p>
+                    <p className="mt-3 text-sm leading-7 text-ink/90">{latestRecord.safe_rewrite}</p>
+                  </div>
+                ) : null}
               </div>
             </div>
 

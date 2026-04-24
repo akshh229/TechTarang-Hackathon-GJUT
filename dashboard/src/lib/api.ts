@@ -1,6 +1,9 @@
 import type {
   AdaptiveDefenseSimulation,
+  DashboardCopilotResponse,
   DashboardSummary,
+  IncidentDrilldown,
+  Incident,
   Scenario,
   SocketMessage,
 } from "../types";
@@ -36,6 +39,29 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
 export async function getScenarios(): Promise<Scenario[]> {
   const response = await fetchJson<{ scenarios: Scenario[] }>("/dashboard/scenarios");
   return response.scenarios;
+}
+
+export async function getDashboardIncidents(): Promise<Incident[]> {
+  const response = await fetchJson<{ incidents: Incident[] }>("/dashboard/incidents");
+  return response.incidents;
+}
+
+export async function getIncidentRecords(incidentId: string): Promise<IncidentDrilldown> {
+  return fetchJson<IncidentDrilldown>(`/dashboard/incidents/${incidentId}/records`);
+}
+
+export async function queryDashboardCopilot(
+  question: string,
+  options?: { family?: string | null; incidentId?: string | null },
+): Promise<DashboardCopilotResponse> {
+  return fetchJson<DashboardCopilotResponse>("/dashboard/copilot/query", {
+    method: "POST",
+    body: JSON.stringify({
+      question,
+      family: options?.family ?? null,
+      incident_id: options?.incidentId ?? null,
+    }),
+  });
 }
 
 export async function simulateScenario(scenarioId: string): Promise<void> {

@@ -141,6 +141,18 @@ def validate_config(config: dict) -> tuple[bool, str]:
             if not isinstance(playbook.get("action"), str) or not playbook.get("action", "").strip():
                 return False, "Each adaptive defense response playbook needs a non-empty 'action'."
 
+    intent_classifier = config.get("intent_classifier", {})
+    if intent_classifier and not isinstance(intent_classifier, dict):
+        return False, "Config section 'intent_classifier' must be a mapping."
+    if intent_classifier:
+        min_confidence = intent_classifier.get("min_confidence", 0.7)
+        if not isinstance(min_confidence, (int, float)) or not (0 <= float(min_confidence) <= 1):
+            return False, "Config section 'intent_classifier.min_confidence' must be between 0 and 1."
+
+    explanation_generation = config.get("explanation_generation", {})
+    if explanation_generation and not isinstance(explanation_generation, dict):
+        return False, "Config section 'explanation_generation' must be a mapping."
+
     return True, ""
 
 def load_yaml_config(filepath: str) -> dict:
