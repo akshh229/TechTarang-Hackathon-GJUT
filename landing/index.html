@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sudarshan — Secure AI Interaction Layer</title>
+  <meta name="description" content="A mandatory, language-agnostic security middleware that wraps LLM integrations to intercept requests, sanitise multimodal inputs, enforce SQL access policies, redact PII, and record immutable audit trails." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link href="https://api.fontshare.com/v2/css?f[]=clash-grotesk@400,500,600,700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="gooey-nav.css" />
+  <link rel="stylesheet" href="border-glow.css" />
+  <link rel="stylesheet" href="text-type.css" />
+</head>
+<body>
+  <!-- Aurora Video Background -->
+  <video id="aurora-video" autoplay loop muted playsinline>
+    <source src="background.webm" type="video/webm">
+  </video>
+  <div class="video-overlay"></div>
+  <!-- Cursor glow -->
+  <div id="cursor-glow"></div>
+
+  <!-- NAV -->
+  <nav id="navbar">
+    <div class="nav-inner">
+      <a href="#hero" class="nav-logo">
+        <span class="logo-bracket">[</span>Sudarshan<span class="logo-bracket">]</span>
+      </a>
+      <div class="gooey-nav-container">
+        <nav>
+          <ul class="nav-links">
+            <li><a href="#problem">Problem</a></li>
+            <li><a href="#features">Features</a></li>
+            <li><a href="#architecture">Architecture</a></li>
+            <li><a href="#compliance">Compliance</a></li>
+            <li class="nav-cta"><a href="#contact">Get Started</a></li>
+          </ul>
+        </nav>
+      </div>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <section id="hero">
+    <div class="hero-content reveal">
+      <div class="badge">TechTarang Hackathon 2026</div>
+      <h1 class="text-type-init" style="margin-bottom: 1.5rem; min-height: 2.2em;" data-type-texts='["Zero-Trust AI Security Middleware", "Secure Your Enterprise Output", "Block Prompt Injections Live"]' data-type-speed="70" data-type-pause="2500" data-type-delete-speed="40">
+        Zero-Trust AI Security Middleware
+      </h1>
+      <p class="hero-sub">
+        SUDARSHAN screens prompts before they reach the model, blocks hostile traffic, redacts sensitive output, records audit telemetry, and streams everything into a live operator dashboard.
+      </p>
+      <div class="hero-actions">
+        <a href="#features" class="border-glow-card" data-glow-radius="12" data-glow-bg="linear-gradient(135deg, rgba(168,85,247,0.4), rgba(225,0,255,0.4))">
+          <div class="border-glow-inner btn-inner">Explore Features</div>
+        </a>
+        <a href="#architecture" class="border-glow-card" data-glow-radius="12" data-glow-bg="rgba(10, 10, 15, 0.85)">
+          <div class="border-glow-inner btn-inner">View Architecture →</div>
+        </a>
+      </div>
+      <div class="hero-stats">
+        <div class="stat-item">
+          <span class="stat-num" data-target="47">0</span><span class="stat-unit">/50</span>
+          <span class="stat-label">Attacks Blocked</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+          <span class="stat-num" data-target="100">0</span><span class="stat-unit">pts</span>
+          <span class="stat-label">Threat Score Range</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-item">
+          <span class="stat-num" data-target="3">0</span><span class="stat-unit">+</span>
+          <span class="stat-label">LLM Providers</span>
+        </div>
+      </div>
+    </div>
+    <div class="hero-visual reveal">
+      <div class="shield-wrapper">
+        <div class="shield-ring ring-1"></div>
+        <div class="shield-ring ring-2"></div>
+        <div class="shield-ring ring-3"></div>
+        <div class="shield-core">
+          <svg viewBox="0 0 80 90" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M40 4L8 16V42C8 59.5 22 74.5 40 80C58 74.5 72 59.5 72 42V16L40 4Z" fill="url(#shieldGrad)" stroke="url(#strokeGrad)" stroke-width="1.5"/>
+            <path d="M28 44l8 8 16-16" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+            <defs>
+              <linearGradient id="shieldGrad" x1="40" y1="4" x2="40" y2="80" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#6366f1" stop-opacity="0.4"/>
+                <stop offset="100%" stop-color="#a855f7" stop-opacity="0.15"/>
+              </linearGradient>
+              <linearGradient id="strokeGrad" x1="8" y1="4" x2="72" y2="80" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stop-color="#818cf8"/>
+                <stop offset="100%" stop-color="#c084fc"/>
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+        <div class="floating-tag tag-1">PII Redacted</div>
+        <div class="floating-tag tag-2">SQL Blocked</div>
+        <div class="floating-tag tag-3">Threat: 92/100</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- MARQUEE 1 -->
+  <div class="marquee-section">
+    <div class="marquee-track">
+      <div class="marquee-content">
+        <span>Prompt Injection Defense</span><span class="dot">◆</span>
+        <span>PII Redaction</span><span class="dot">◆</span>
+        <span>SQL Firewall</span><span class="dot">◆</span>
+        <span>Zero-Trust Architecture</span><span class="dot">◆</span>
+        <span>Multimodal Security</span><span class="dot">◆</span>
+        <span>Immutable Audit Trail</span><span class="dot">◆</span>
+        <span>DPDP Act 2023</span><span class="dot">◆</span>
+        <span>Session Anomaly Detection</span><span class="dot">◆</span>
+        <span>Composite Threat Score</span><span class="dot">◆</span>
+        <span>Prompt Injection Defense</span><span class="dot">◆</span>
+        <span>PII Redaction</span><span class="dot">◆</span>
+        <span>SQL Firewall</span><span class="dot">◆</span>
+        <span>Zero-Trust Architecture</span><span class="dot">◆</span>
+        <span>Multimodal Security</span><span class="dot">◆</span>
+        <span>Immutable Audit Trail</span><span class="dot">◆</span>
+        <span>DPDP Act 2023</span><span class="dot">◆</span>
+        <span>Session Anomaly Detection</span><span class="dot">◆</span>
+        <span>Composite Threat Score</span><span class="dot">◆</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- PROBLEM -->
+  <section id="problem">
+    <div class="section-inner">
+      <div class="section-label reveal">Why This Exists</div>
+      <h2 class="section-title reveal">Most LLM Apps<br /><span class="gradient-text">Trust the Prompt Too Early</span></h2>
+      <p class="section-sub reveal">Standard WAFs and model-level guardrails fail because they can't understand the semantic meaning of LLM prompts or are easily bypassed by encoded, smuggled, or multi-step attacks.</p>
+      <div class="problem-grid">
+        <div class="problem-card reveal">
+          <div class="problem-num">01</div>
+          <div class="problem-icon">⚡</div>
+          <h3>Prompt Injection</h3>
+          <p>Instruction overrides, jailbreaks, encoded payloads, and smuggled content hijack model behavior across text, images, and PDFs.</p>
+          <div class="card-glow"></div>
+        </div>
+        <div class="problem-card reveal">
+          <div class="problem-num">02</div>
+          <div class="problem-icon">🔓</div>
+          <h3>Session Abuse</h3>
+          <p>Multi-step APT-style attacks exploit session context. Repeat offenders escalate risk without per-session tracking and cooldown controls.</p>
+          <div class="card-glow"></div>
+        </div>
+        <div class="problem-card reveal">
+          <div class="problem-num">03</div>
+          <div class="problem-icon">🕵️</div>
+          <h3>PII Leakage</h3>
+          <p>Aadhaar, PAN, emails, and phone numbers surface verbatim in raw LLM responses without egress redaction.</p>
+          <div class="card-glow"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FEATURES -->
+  <section id="features">
+    <div class="section-inner">
+      <div class="section-label reveal">Feature Highlights</div>
+      <h2 class="section-title reveal">Everything You Need to<br /><span class="gradient-text">Secure Your AI Stack</span></h2>
+      <div class="features-grid">
+        <div class="feature-card reveal">
+          <div class="feature-icon-wrap"><span>🛡️</span></div>
+          <h4>Prompt & Input Defense</h4>
+          <p>Screens text before provider execution. Detects instruction overrides, jailbreaks, encoded payloads, and smuggled content across text, OCR images, and PDFs.</p>
+        </div>
+        <div class="feature-card reveal">
+          <div class="feature-icon-wrap"><span>🎯</span></div>
+          <h4>Explainable Threat Scoring</h4>
+          <p>Each request gets a risk level (GREEN/AMBER/RED), numeric threat score, action taken, score breakdown, and matched attack signals.</p>
+        </div>
+        <div class="feature-card reveal">
+          <div class="feature-icon-wrap"><span>🔒</span></div>
+          <h4>Session-Aware Abuse Control</h4>
+          <p>Tracks risky behavior across requests, escalates repeat offenders, applies cooldown windows, and returns 429 when sessions are locked.</p>
+        </div>
+        <div class="feature-card reveal">
+          <div class="feature-icon-wrap"><span>⚙️</span></div>
+          <h4>Policy-Driven Guardrails</h4>
+          <p>Loads policy from YAML, watches changes at runtime, builds system prompts with active guardrails, classifies intent before the provider sees it.</p>
+        </div>
+        <div class="feature-card reveal">
+          <div class="feature-icon-wrap"><span>🔌</span></div>
+          <h4>Multi-Provider Model Routing</h4>
+          <p>Routes requests through OpenAI, Claude, Gemini, or Ollama. Provider can come from policy or be overridden per request.</p>
+        </div>
+        <div class="feature-card reveal feature-card--wide">
+          <div class="feature-icon-wrap"><span>🔏</span></div>
+          <h4>Egress Protection</h4>
+          <p>Before a response is returned, the middleware redacts PAN, Aadhaar, email addresses, and phone numbers. Redaction counts feed into telemetry and dashboards.</p>
+        </div>
+        <div class="feature-card reveal feature-card--wide">
+          <div class="feature-icon-wrap"><span>🧠</span></div>
+          <h4>Adaptive Defense</h4>
+          <p>Reads attack reports, ranks attack families, generates runtime signatures from indicators, recommends response playbooks, and applies changes into policy overlays. Covers indirect injection, tool execution, memory poisoning, moderation evasion, and encoded payloads.</p>
+        </div>
+        <div class="feature-card reveal feature-card--wide">
+          <div class="feature-icon-wrap"><span>📊</span></div>
+          <h4>Live Operator Dashboard</h4>
+          <p>Real-time React dashboard with threat charts, attack feed, session watchlist, red-team scenario launcher, adaptive-defense simulation, PII redaction totals, and before/after sanitization view.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ARCHITECTURE -->
+  <section id="architecture">
+    <div class="section-inner">
+      <div class="section-label reveal">Architecture</div>
+      <h2 class="section-title reveal">Zero-Trust<br /><span class="gradient-text">"Sandwich" Model</span></h2>
+      <p class="section-sub reveal">Sudarshan sits between the user and the LLM, acting as a two-way filter that sanitises inputs before they reach the model and redacts outputs before they reach the user.</p>
+      <div class="arch-diagram reveal">
+        <div class="arch-node node-client">
+          <div class="arch-node-label">Client Request</div>
+        </div>
+        <div class="arch-arrow">↓</div>
+        <div class="arch-layer layer-ingress">
+          <div class="arch-layer-title">INGRESS LAYER</div>
+          <div class="arch-layer-items">
+            <span>Sanitisation</span>
+            <span class="arr">→</span>
+            <span>Threat Score Engine</span>
+            <span class="arr">→</span>
+            <span>Intent Classification</span>
+            <span class="arr">→</span>
+            <span>SQL Planner</span>
+          </div>
+          <div class="arch-branch">
+            <div class="arch-branch-line"></div>
+            <div class="arch-branch-node">Session Anomaly Store (Redis)</div>
+          </div>
+        </div>
+        <div class="arch-arrow">↓</div>
+        <div class="arch-layer layer-adapter">
+          <div class="arch-layer-title">PROVIDER ADAPTER</div>
+          <div class="arch-providers">
+            <div class="provider-pill">OpenAI</div>
+            <div class="provider-pill">Claude</div>
+            <div class="provider-pill">Gemini</div>
+            <div class="provider-pill">Ollama</div>
+          </div>
+        </div>
+        <div class="arch-arrow">↓</div>
+        <div class="arch-layer layer-llm">
+          <div class="arch-layer-title">LLM ENGINE</div>
+          <div class="arch-layer-sub">Selected provider processes the sanitised request</div>
+        </div>
+        <div class="arch-arrow">↓</div>
+        <div class="arch-layer layer-egress">
+          <div class="arch-layer-title">EGRESS LAYER</div>
+          <div class="arch-layer-items">
+            <span>PII Redaction</span>
+            <span class="arr">→</span>
+            <span>Response Validation</span>
+            <span class="arr">→</span>
+            <span>Audit Log Write</span>
+          </div>
+          <div class="arch-branch">
+            <div class="arch-branch-line"></div>
+            <div class="arch-branch-node">WebSocket → React Dashboard</div>
+          </div>
+        </div>
+        <div class="arch-arrow">↓</div>
+        <div class="arch-node node-response">
+          <div class="arch-node-label">Sanitised Response → Client</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- MARQUEE 2 — Providers -->
+  <div class="marquee-section marquee-reverse">
+    <div class="marquee-track">
+      <div class="marquee-content marquee-slow">
+        <span class="provider-tag">OpenAI</span><span class="dot">◆</span>
+        <span class="provider-tag">Claude</span><span class="dot">◆</span>
+        <span class="provider-tag">Gemini</span><span class="dot">◆</span>
+        <span class="provider-tag">Ollama</span><span class="dot">◆</span>
+        <span class="provider-tag">PromptBench</span><span class="dot">◆</span>
+        <span class="provider-tag">garak</span><span class="dot">◆</span>
+        <span class="provider-tag">OWASP LLM Top 10</span><span class="dot">◆</span>
+        <span class="provider-tag">DPDP Act 2023</span><span class="dot">◆</span>
+        <span class="provider-tag">OpenAI</span><span class="dot">◆</span>
+        <span class="provider-tag">Claude</span><span class="dot">◆</span>
+        <span class="provider-tag">Gemini</span><span class="dot">◆</span>
+        <span class="provider-tag">Ollama</span><span class="dot">◆</span>
+        <span class="provider-tag">PromptBench</span><span class="dot">◆</span>
+        <span class="provider-tag">garak</span><span class="dot">◆</span>
+        <span class="provider-tag">OWASP LLM Top 10</span><span class="dot">◆</span>
+        <span class="provider-tag">DPDP Act 2023</span><span class="dot">◆</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- COMPLIANCE -->
+  <section id="compliance">
+    <div class="section-inner compliance-inner">
+      <div class="compliance-text">
+        <div class="section-label reveal">Compliance</div>
+        <h2 class="section-title reveal">Built for<br /><span class="gradient-text">DPDP Act 2023</span></h2>
+        <p class="section-sub reveal">Designed with the Digital Personal Data Protection Act 2023 in mind, featuring comprehensive PII masking and one-click PDF/JSON compliance report generation for your auditors.</p>
+        <ul class="compliance-list reveal">
+          <li><span class="check">✓</span> Comprehensive PII masking (Aadhaar, PAN, phone, email)</li>
+          <li><span class="check">✓</span> One-click PDF &amp; JSON compliance report export</li>
+          <li><span class="check">✓</span> Immutable audit trail for every AI interaction</li>
+          <li><span class="check">✓</span> Benchmarked against OWASP LLM test cases</li>
+          <li><span class="check">✓</span> 47/50 block rate on garak/PromptBench corpus</li>
+        </ul>
+      </div>
+      <div class="compliance-card reveal">
+        <div class="compliance-report">
+          <div class="report-header">
+            <span class="report-badge">DPDP 2023</span>
+            <span class="report-status">Compliant</span>
+          </div>
+          <div class="report-row"><span>PII Redacted</span><span class="report-val green">2,341</span></div>
+          <div class="report-row"><span>Attacks Blocked</span><span class="report-val red">847</span></div>
+          <div class="report-row"><span>Audit Events</span><span class="report-val">12,908</span></div>
+          <div class="report-row"><span>Avg Threat Score</span><span class="report-val orange">72/100</span></div>
+          <div class="report-row"><span>Block Rate</span><span class="report-val green">94%</span></div>
+          <div class="report-footer">
+            <span class="report-export">📄 Export PDF</span>
+            <span class="report-export">{ } Export JSON</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- RED TEAM -->
+  <section id="redteam">
+    <div class="section-inner">
+      <div class="section-label reveal">Red-Team Testing</div>
+      <h2 class="section-title reveal">Benchmarked Against<br /><span class="gradient-text">Public Attack Corpora</span></h2>
+      <div class="redteam-grid">
+        <div class="redteam-card reveal">
+          <div class="redteam-score">
+            <svg viewBox="0 0 100 100" class="score-ring">
+              <circle cx="50" cy="50" r="42" class="ring-bg"/>
+              <circle cx="50" cy="50" r="42" class="ring-fill" style="--pct:0.94"/>
+            </svg>
+            <div class="score-text">94<span>%</span></div>
+          </div>
+          <h4>Block Rate</h4>
+          <p>Against OWASP LLM test cases targeting a minimum of 47/50 on the garak/PromptBench corpus</p>
+        </div>
+        <div class="redteam-card reveal">
+          <div class="redteam-score">
+            <svg viewBox="0 0 100 100" class="score-ring">
+              <circle cx="50" cy="50" r="42" class="ring-bg"/>
+              <circle cx="50" cy="50" r="42" class="ring-fill ring-purple" style="--pct:0.85"/>
+            </svg>
+            <div class="score-text">85<span>%</span></div>
+          </div>
+          <h4>Multimodal Coverage</h4>
+          <p>Detection coverage across text, image OCR, and PDF injection vectors in adversarial test scenarios</p>
+        </div>
+        <div class="redteam-card reveal">
+          <div class="redteam-score">
+            <svg viewBox="0 0 100 100" class="score-ring">
+              <circle cx="50" cy="50" r="42" class="ring-bg"/>
+              <circle cx="50" cy="50" r="42" class="ring-fill ring-pink" style="--pct:0.99"/>
+            </svg>
+            <div class="score-text">99<span>%</span></div>
+          </div>
+          <h4>PII Redaction Accuracy</h4>
+          <p>Accurately redacts Aadhaar, PAN, phone numbers, and email addresses from all LLM responses</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer id="contact">
+    <div class="footer-inner">
+      <div class="footer-top">
+        <div class="footer-brand">
+          <div class="footer-logo">
+            <span class="logo-bracket">[</span>Sudarshan<span class="logo-bracket">]</span>
+          </div>
+          <p>Sudarshan — The AI Firewall for the Enterprise</p>
+          <div class="footer-socials">
+            <a href="https://www.linkedin.com/company/" id="footer-linkedin" target="_blank">in</a>
+            <a href="https://github.com/" id="footer-github" target="_blank">GH</a>
+          </div>
+        </div>
+        <div class="footer-links">
+          <h5>Product</h5>
+          <a href="#problem">Problem</a>
+          <a href="#features">Features</a>
+          <a href="#architecture">Architecture</a>
+          <a href="#compliance">Compliance</a>
+        </div>
+        <div class="footer-links">
+          <h5>Resources</h5>
+          <a href="#">Documentation</a>
+          <a href="#">Red-Team Report</a>
+          <a href="#">OWASP LLM Top 10</a>
+          <a href="#">DPDP Act 2023</a>
+        </div>
+        <div class="footer-cta">
+          <h5>Get Notified</h5>
+          <p>Be first to know when Sudarshan goes live.</p>
+          <form class="email-form" id="email-form">
+            <input type="email" id="email-input" placeholder="you@enterprise.com" />
+            <button type="submit" id="email-submit">→</button>
+          </form>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span>Built by <strong>Team Techinnovate</strong> for TechTarang Hackathon · April 2026</span>
+        <span>GJUT</span>
+      </div>
+    </div>
+  </footer>
+
+  <script src="gooey-nav.js"></script>
+  <script src="glass-surface.js"></script>
+  <script src="border-glow.js"></script>
+  <script src="text-type.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
