@@ -12,17 +12,24 @@ from statistics import median
 from typing import Any, Dict, List, Optional
 
 from fastapi import FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
-from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+from src.adaptive_defense.compiler import AttackReportCompiler
 from src.adapters.factory import get_provider_adapter
 from src.audit.logger import AuditLogger
+from src.compliance.reporter import ComplianceReporter
 from src.config.config_loader import get_policy_config, init_config_watcher
 from src.dashboard.broadcaster import EventBroadcaster
 from src.egress.redactor import EgressRedactor
 from src.ingress.sanitizer import IngressSanitizer
+from src.security.middleware import (
+    PayloadSizeLimitMiddleware,
+    RateLimitMiddleware,
+    SecurityHeadersMiddleware,
+)
 from src.session_store.store import SessionStore
 from src.sql_planner.planner import SQLPlanner
 from src.threat_scoring.engine import ThreatScoringEngine
@@ -37,6 +44,8 @@ sanitizer = IngressSanitizer()
 planner = SQLPlanner()
 redactor = EgressRedactor()
 threat_engine = ThreatScoringEngine()
+compliance_reporter = ComplianceReporter()
+attack_report_compiler = AttackReportCompiler()
 
 
 DEMO_SCENARIOS: Dict[str, Dict[str, str]] = {
@@ -95,11 +104,6 @@ def mask_session_id(session_id: str) -> str:
     return f"{session_id[:4]}••••{session_id[-4:]}"
 
 
-def parse_timestamp(timestamp: str) -> datetime:
-    normalized = timestamp.replace("Z", "+00:00")
-    return datetime.fromisoformat(normalized)
-
-
 def compliance_tags_for_record(
     pii_stats: Dict[str, int],
     risk_level: str,
@@ -119,6 +123,16 @@ def compliance_tags_for_record(
     if action_taken in {"BLOCK", "BAN"} or risk_level == "RED":
         tags.append("DPDP-Section-10:FiduciaryObligations")
     return list(dict.fromkeys(tags))
+
+
+def build_system_prompt(config: Dict[str, Any]) -> str:
+    base_prompt = "You are a secure enterprise assistant. Stay concise and respect all guardrails."
+    adaptive_guardrails = config.get("adaptive_defense", {}).get("prompt_guardrails", [])
+    if not adaptive_guardrails:
+        return base_prompt
+
+    guardrail_lines = "\n".join(f"- {item}" for item in adaptive_guardrails[:8])
+    return f"{base_prompt}\n\nActive adaptive defense guardrails:\n{guardrail_lines}"
 
 
 def format_record_for_dashboard(record: Dict[str, Any]) -> Dict[str, Any]:
@@ -234,54 +248,6 @@ def build_dashboard_summary(records: List[Dict[str, Any]]) -> Dict[str, Any]:
         "recent_records": [format_record_for_dashboard(record) for record in records[:50]],
     }
 
-
-def build_compliance_report(records: List[Dict[str, Any]]) -> Dict[str, Any]:
-    summary = build_dashboard_summary(records)
-    blocked_records = [
-        format_record_for_dashboard(record)
-        for record in records
-        if record.get("action_taken") in {"BLOCK", "BAN"}
-    ]
-
-    return {
-        "generated_at": utc_now_iso(),
-        "summary": summary["totals"],
-        "top_blocked_patterns": summary["top_patterns"],
-        "dpdp_mapping": [
-            {
-                "section": "Section 4",
-                "obligation": "Lawful processing",
-                "system_feature": "Policy-Aware SQL Planner",
-                "audit_evidence": "sql_intent_token",
-            },
-            {
-                "section": "Section 8(1)",
-                "obligation": "Data accuracy",
-                "system_feature": "Egress Redactor",
-                "audit_evidence": "pii_redactions",
-            },
-            {
-                "section": "Section 8(3)",
-                "obligation": "Data minimisation",
-                "system_feature": "Least-privilege SQL templates",
-                "audit_evidence": "sql_intent_token",
-            },
-            {
-                "section": "Section 10",
-                "obligation": "Fiduciary obligations",
-                "system_feature": "Compliance report export",
-                "audit_evidence": "request_id + timestamp + input_hash",
-            },
-        ],
-        "session_anomalies": summary["suspicious_sessions"],
-        "blocked_events": blocked_records[:10],
-        "hash_chain_verification": {
-            "status": "prototype-verifiable",
-            "record_count": len(records),
-        },
-    }
-
-
 async def persist_and_broadcast(record: Dict[str, Any]) -> Dict[str, Any]:
     logger = get_audit_logger()
     persisted_record = {
@@ -368,7 +334,7 @@ async def process_interaction(
 
     if assessment["risk_level"] != "RED":
         raw_response = await adapter.complete(
-            "You are a secure enterprise assistant. Stay concise and respect all guardrails.",
+            build_system_prompt(config),
             inspection["sanitized_text"],
             model=config.get("llm", {}).get("model", "gpt-4.1-mini"),
             temperature=0.2,
@@ -423,11 +389,12 @@ async def process_interaction(
         raise HTTPException(
             status_code=403,
             detail={
-                "message": "Access denied by Secure AI Interaction Layer.",
+                "message": "Access denied by SUDARSHAN.",
                 "request_id": persisted_record["request_id"],
                 "risk_level": assessment["risk_level"],
                 "threat_score": assessment["threat_score"],
                 "signals": assessment["combined_signals"],
+                "detected_families": assessment.get("detected_families", []),
             },
         )
 
@@ -441,6 +408,7 @@ async def process_interaction(
             "threat_score": assessment["threat_score"],
             "score_breakdown": assessment["score_breakdown"],
             "signals": assessment["combined_signals"],
+            "detected_families": assessment.get("detected_families", []),
             "provider": provider_name,
             "sql_intent_token": sql_intent,
             "pii_redacted": sum(pii_stats.values()),
@@ -465,12 +433,15 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="Secure AI Interaction Layer",
+    title="SUDARSHAN",
     description="Multimodal AI Firewall & dashboard-ready middleware",
     version="2.0",
     lifespan=lifespan,
 )
 
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(PayloadSizeLimitMiddleware)
+app.add_middleware(RateLimitMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -497,12 +468,24 @@ class SimulationRequest(BaseModel):
     provider: Optional[str] = None
 
 
+class AttackReportRequest(BaseModel):
+    title: str = Field(min_length=3, max_length=200)
+    report_text: str = Field(min_length=20, max_length=40000)
+    summary: str = Field(default="", max_length=4000)
+    severity: str = Field(default="HIGH", max_length=20)
+    attack_surface: List[str] = Field(default_factory=list)
+    indicators: List[str] = Field(default_factory=list)
+    payload_examples: List[str] = Field(default_factory=list)
+    references: List[str] = Field(default_factory=list)
+    apply_changes: bool = False
+
+
 @app.get("/")
 def health_check() -> Dict[str, Any]:
     config = get_policy_config()
     return {
         "status": "healthy",
-        "service": "Secure AI Interaction Layer",
+        "service": "SUDARSHAN",
         "active_provider": config.get("llm", {}).get("provider", "openai"),
         "websocket_endpoint": "/ws/events",
     }
@@ -582,15 +565,7 @@ async def export_compliance_report(
 ):
     logger = get_audit_logger()
     records = logger.get_records(limit=10000)
-
-    if from_ts:
-        start = parse_timestamp(from_ts)
-        records = [record for record in records if parse_timestamp(record["timestamp"]) >= start]
-    if to_ts:
-        end = parse_timestamp(to_ts)
-        records = [record for record in records if parse_timestamp(record["timestamp"]) <= end]
-
-    report = build_compliance_report(records)
+    report = compliance_reporter.build_report(records, from_ts, to_ts)
 
     if format == "json":
         return report
@@ -606,30 +581,7 @@ async def export_compliance_report(
             },
         )
 
-    html = f"""
-    <html>
-      <body style="font-family: Arial, sans-serif; padding: 32px;">
-        <h1>Secure AI Interaction Layer Compliance Report</h1>
-        <p>Generated at: {report["generated_at"]}</p>
-        <h2>Summary</h2>
-        <ul>
-          <li>Total requests: {report["summary"]["total_requests"]}</li>
-          <li>Blocked requests: {report["summary"]["blocked_requests"]}</li>
-          <li>Flagged requests: {report["summary"]["flagged_requests"]}</li>
-          <li>Suspicious sessions: {report["summary"]["suspicious_sessions"]}</li>
-        </ul>
-        <h2>Top blocked patterns</h2>
-        <ul>
-          {
-            "".join(
-                f"<li>{item['pattern']}: {item['count']}</li>"
-                for item in report["top_blocked_patterns"]
-            )
-          }
-        </ul>
-      </body>
-    </html>
-    """
+    html = compliance_reporter.build_pdf_html(report)
     pdf_bytes = HTML(string=html).write_pdf()
 
     return Response(
@@ -637,6 +589,23 @@ async def export_compliance_report(
         media_type="application/pdf",
         headers={"Content-Disposition": "attachment; filename=secure-ai-compliance-report.pdf"},
     )
+
+
+@app.get("/adaptive-defense/status")
+def adaptive_defense_status() -> Dict[str, Any]:
+    config = get_policy_config()
+    status = attack_report_compiler.build_status(config, get_policy_path())
+    status["service"] = "SUDARSHAN"
+    return status
+
+
+@app.post("/adaptive-defense/compile")
+def compile_attack_report(payload: AttackReportRequest) -> Dict[str, Any]:
+    current_policy = get_policy_config()
+    compiled = attack_report_compiler.compile_report(payload.model_dump(), current_policy)
+    if payload.apply_changes:
+        compiled = attack_report_compiler.apply_report(compiled, get_policy_path())
+    return compiled
 
 
 @app.get("/ai-report")

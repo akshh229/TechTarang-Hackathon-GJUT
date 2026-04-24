@@ -1,43 +1,37 @@
 import os
 from pathlib import Path
 
-import yaml
 from fastapi.testclient import TestClient
 
 from src.config.config_loader import update_active_policy
 from src.main import app, event_broadcaster, session_store
+from tests.helpers import write_policy as write_test_policy
 
 
 def write_policy(path: Path) -> None:
-    policy = {
-        "llm": {"provider": "openai", "model": "gpt-4.1-mini"},
-        "dashboard": {"latency_threshold_ms": 150},
-        "session_policy": {
-            "suspicious_window_seconds": 300,
-            "suspicious_min_requests": 3,
-            "cooldown_window_seconds": 600,
-            "cooldown_blocks": 2,
-            "cooldown_duration_seconds": 60,
+    write_test_policy(
+        path,
+        {
+            "dashboard": {"latency_threshold_ms": 150},
+            "session_policy": {
+                "suspicious_window_seconds": 300,
+                "suspicious_min_requests": 3,
+                "cooldown_window_seconds": 600,
+                "cooldown_blocks": 2,
+                "cooldown_duration_seconds": 60,
+            },
+            "sql_policy": {
+                "templates": {
+                    "GET_ACCOUNT_BALANCE": "SELECT balance FROM accounts WHERE user_id = :user_id"
+                }
+            },
+            "injection_rules": [
+                {"pattern": "ignore all previous instructions", "severity": "CRITICAL"},
+                {"pattern": "dump the users table", "severity": "CRITICAL"},
+                {"pattern": "system prompt", "severity": "HIGH"},
+            ],
         },
-        "sql_policy": {
-            "templates": {
-                "GET_ACCOUNT_BALANCE": "SELECT balance FROM accounts WHERE user_id = :user_id"
-            }
-        },
-        "injection_rules": [
-            {"pattern": "ignore all previous instructions", "severity": "CRITICAL"},
-            {"pattern": "dump the users table", "severity": "CRITICAL"},
-            {"pattern": "system prompt", "severity": "HIGH"},
-        ],
-        "pii_patterns": {
-            "pan": "[A-Z]{5}[0-9]{4}[A-Z]{1}",
-            "aadhaar": "\\b\\d{4}\\s?\\d{4}\\s?\\d{4}\\b",
-            "email": "\\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Z|a-z]{2,}\\b",
-            "phone": "\\+?\\d{10,13}",
-        },
-        "risk_thresholds": {"amber": 30, "red": 60},
-    }
-    path.write_text(yaml.safe_dump(policy), encoding="utf-8")
+    )
 
 
 def reset_runtime_state() -> None:

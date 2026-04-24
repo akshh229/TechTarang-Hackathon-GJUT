@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SUDARSHAN Zero-Trust AI Firewall</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            500: '#3b82f6',
+                            900: '#1e3a8a',
+                            950: '#172554',
+                        },
+                        darkbase: '#09090b', // Zinc-950
+                        darkcard: '#18181b', // Zinc-900
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #09090b;
+            color: #f4f4f5;
+        }
+        .glass-card {
+            background-color: #18181b;
+            border: 1px solid #27272a;
+            border-radius: 0.5rem;
+        }
+        .pulse-red {
+            animation: pulse-border 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes pulse-border {
+            0%, 100% { border-color: rgba(239, 68, 68, 0.2); }
+            50% { border-color: rgba(239, 68, 68, 1); }
+        }
+        /* CustomScrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #09090b; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #3f3f46; 
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #52525b; 
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col antialiased">
+    
+    <!-- Top Navigation -->
+    <header class="border-b border-zinc-800 bg-darkcard/80 backdrop-blur-md sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="flex items-center justify-center w-8 h-8 rounded bg-brand-500/20 border border-brand-500/50 text-brand-500 font-bold">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
+                </div>
+                <h1 class="text-xl font-semibold tracking-tight">SUDARSHAN <span class="text-zinc-500 font-normal">Zero-Trust Firewall</span></h1>
+            </div>
+            <div class="flex items-center gap-4 text-sm">
+                <span class="flex items-center gap-2 text-zinc-400">
+                    <span class="relative flex h-2.5 w-2.5">
+                      <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                      <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                    </span>
+                    System Online Monitoring
+                </span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Dashboard -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 py-8 flex flex-col gap-6">
+        
+        <!-- KPI Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div class="glass-card p-5">
+                <p class="text-zinc-400 text-sm font-medium mb-1">Total Intercepts</p>
+                <div class="flex items-baseline gap-2">
+                    <h2 class="text-3xl font-bold text-zinc-100" id="kpi-total">-</h2>
+                </div>
+            </div>
+            <div class="glass-card p-5 border-l-2 border-l-emerald-500">
+                <p class="text-zinc-400 text-sm font-medium mb-1">Clean Traffic</p>
+                <h2 class="text-3xl font-bold text-emerald-400" id="kpi-clean">-</h2>
+            </div>
+            <div class="glass-card p-5 border-l-2 border-l-red-500">
+                <p class="text-zinc-400 text-sm font-medium mb-1">Blocked Attacks</p>
+                <h2 class="text-3xl font-bold text-red-500" id="kpi-blocked">-</h2>
+            </div>
+            <div class="glass-card p-5 border-l-2 border-l-amber-500 pulse-red" id="kpi-ddos-card">
+                <p class="text-zinc-400 text-sm font-medium mb-1">DDoS / Suspicious Sessions</p>
+                <h2 class="text-3xl font-bold text-amber-500" id="kpi-ddos">-</h2>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Left Column: Attack Flow & Chart -->
+            <div class="lg:col-span-2 flex flex-col gap-6">
+                <!-- Telemetry Chart -->
+                <div class="glass-card p-5 flex flex-col h-72">
+                    <h3 class="text-sm font-semibold text-zinc-300 mb-4 uppercase tracking-wider">Live Threat Trajectory</h3>
+                    <div class="flex-1 min-h-0 relative">
+                        <canvas id="threatChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Recent Attacks Table -->
+                <div class="glass-card p-0 overflow-hidden flex-1 flex flex-col">
+                    <div class="p-5 border-b border-zinc-800 flex justify-between items-center">
+                        <h3 class="text-sm font-semibold text-zinc-300 uppercase tracking-wider">Intercepted Threats Log</h3>
+                        <span class="text-xs text-zinc-500" id="last-updated">Updating...</span>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-sm text-zinc-400">
+                            <thead class="bg-zinc-900 text-xs uppercase border-b border-zinc-800">
+                                <tr>
+                                    <th class="px-5 py-3">Timestamp</th>
+                                    <th class="px-5 py-3">Action</th>
+                                    <th class="px-5 py-3">Score</th>
+                                    <th class="px-5 py-3 w-1/3">Attack Vector (Prompt)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="attack-logs-body" class="divide-y divide-zinc-800/50">
+                                <!-- JS injected content -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: AI Security Analyst Report -->
+            <div class="glass-card flex flex-col overflow-hidden">
+                <div class="bg-brand-900/30 border-b border-brand-900/50 p-5 flex items-center gap-3">
+                    <svg class="w-5 h-5 text-brand-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                    <h3 class="text-sm font-semibold text-brand-300 uppercase tracking-wider">AI Security Analyst Report</h3>
+                </div>
+                
+                <div class="p-5 flex-1 overflow-y-auto" id="ai-report-container">
+                    <div class="flex items-center justify-center h-full text-zinc-500 gap-2 flex-col">
+                        <svg class="animate-spin h-6 w-6 text-brand-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <p class="text-sm mt-2">Correlating attack vectors and generating actionable insights...</p>
+                    </div>
+                </div>
+                
+                <div class="p-4 bg-zinc-900/50 border-t border-zinc-800">
+                    <button onclick="fetchAiReport()" class="w-full py-2 px-4 bg-brand-500 hover:bg-brand-600 text-white text-sm font-medium rounded transition-colors flex items-center justify-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                        Refresh AI Analysis
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        let threatChart = null;
+
+        function initChart() {
+            const ctx = document.getElementById('threatChart').getContext('2d');
+            Chart.defaults.color = '#71717a';
+            Chart.defaults.font.family = 'Inter';
+            
+            threatChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Threat Score',
+                        data: [],
+                        borderColor: '#ef4444',
+                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 0,
+                        pointHitRadius: 10
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { mode: 'index', intersect: false }
+                    },
+                    scales: {
+                        y: { 
+                            beginAtZero: true, 
+                            max: 100, 
+                            grid: { color: '#27272a' },
+                            ticks: { callback: function(value) { return value + ' / 100'; } }
+                        },
+                        x: { grid: { display: false }, ticks: { maxTicksLimit: 10 } }
+                    }
+                }
+            });
+        }
+
+        function updateKpis(summary) {
+            document.getElementById('kpi-total').textContent = summary.totals.total_requests;
+            document.getElementById('kpi-clean').textContent = summary.totals.clean_requests;
+            document.getElementById('kpi-blocked').textContent = summary.totals.blocked_requests;
+            document.getElementById('kpi-ddos').textContent = summary.totals.suspicious_sessions;
+            
+            if(summary.totals.suspicious_sessions > 0) {
+                document.getElementById('kpi-ddos-card').classList.add('pulse-red');
+            } else {
+                document.getElementById('kpi-ddos-card').classList.remove('pulse-red');
+            }
+        }
+
+        function updateLogs(records) {
+            const tbody = document.getElementById('attack-logs-body');
+            tbody.innerHTML = '';
+            
+            const blockedOrFlagged = records.filter(r => r.action_taken === 'BLOCK' || r.action_taken === 'BAN' || r.risk_level === 'RED').slice(0, 10);
+            
+            if (blockedOrFlagged.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" class="px-5 py-8 text-center text-zinc-500">No recent blocked attacks detected.</td></tr>';
+                return;
+            }
+
+            const frag = document.createDocumentFragment();
+            blockedOrFlagged.forEach(record => {
+                const tr = document.createElement('tr');
+                const timeStr = new Date(record.timestamp).toLocaleTimeString();
+                
+                let actionBadge = `<span class="px-2 py-1 rounded text-xs font-semibold bg-red-500/20 text-red-400">BLOCKED</span>`;
+                if(record.action_taken === 'BAN') {
+                    actionBadge = `<span class="px-2 py-1 rounded text-xs font-semibold bg-red-600/30 text-red-500 border border-red-500/20">DDoS BAN</span>`;
+                }
+
+                tr.innerHTML = `
+                    <td class="px-5 py-3 whitespace-nowrap text-zinc-300">${timeStr}</td>
+                    <td class="px-5 py-3 whitespace-nowrap">${actionBadge}</td>
+                    <td class="px-5 py-3 whitespace-nowrap"><span class="text-red-400 font-medium">${record.threat_score}</span> / 100</td>
+                    <td class="px-5 py-3 truncate max-w-xs" title="${record.input_preview}">
+                        <code class="text-amber-300/80 text-xs px-1 py-0.5 bg-amber-500/10 rounded">${record.input_preview.replace(/</g, "&lt;")}</code>
+                    </td>
+                `;
+                frag.appendChild(tr);
+            });
+            tbody.appendChild(frag);
+            document.getElementById('last-updated').textContent = 'Last updated: ' + new Date().toLocaleTimeString();
+        }
+
+        function updateChart(threatSeries) {
+            // Sort chronologically (oldest to newest for the chart)
+            const sorted = [...threatSeries].reverse();
+            threatChart.data.labels = sorted.map(t => new Date(t.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'}));
+            threatChart.data.datasets[0].data = sorted.map(t => t.threat_score);
+            threatChart.update('none'); // Update without animation so it's smooth on polling
+        }
+
+        async function fetchDashboard() {
+            try {
+                // Determine port automatically
+                const url = '/dashboard/summary?limit=200';
+                const res = await fetch(url);
+                const data = await res.json();
+                
+                updateKpis(data);
+                updateChart(data.threat_series);
+                updateLogs(data.recent_records);
+                
+            } catch (error) {
+                console.error("Dashboard fetch error:", error);
+            }
+        }
+
+        async function fetchAiReport() {
+            const container = document.getElementById('ai-report-container');
+            container.innerHTML = `
+                <div class="flex items-center justify-center h-full text-zinc-500 gap-2 flex-col">
+                    <svg class="animate-spin h-6 w-6 text-brand-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <p class="text-sm mt-2">Correlating attack vectors and generating actionable insights...</p>
+                </div>
+            `;
+
+            try {
+                const res = await fetch('/ai-report');
+                const data = await res.json();
+                
+                // Format the text output minimally (supporting simple line breaks)
+                const formattedHtml = data.report_text.replace(/\n/g, '<br/>')
+                                    .replace(/\*\*(.*?)\*\*/g, '<strong class="text-zinc-100">$1</strong>')
+                                    .replace(/- ([A-Z].*)/g, '<li class="ml-4 mb-2">$1</li>');
+
+                container.innerHTML = `
+                    <div class="text-sm text-zinc-300 leading-relaxed space-y-4">
+                        <div class="flex items-start gap-3 bg-brand-900/10 border border-brand-500/20 p-3 rounded">
+                            <span class="text-xl">🛡️</span>
+                            <p class="text-xs text-brand-200 mt-0.5">Analysis generated using live ingress telemetry data spanning ${data.metrics_analyzed.total_requests} recent requests.</p>
+                        </div>
+                        <div class="px-1 prose prose-invert prose-sm max-w-none">
+                            ${formattedHtml}
+                        </div>
+                    </div>
+                `;
+            } catch (error) {
+                container.innerHTML = `<div class="text-red-400 p-4 bg-red-500/10 border border-red-500/20 rounded text-sm">Failed to generate AI security report. Check console or backend connection.</div>`;
+            }
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            initChart();
+            fetchDashboard();
+            fetchAiReport();
+            
+            // Poll for live threats every 3 seconds
+            setInterval(fetchDashboard, 3000);
+        });
+    </script>
+</body>
+</html>

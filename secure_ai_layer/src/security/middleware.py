@@ -55,15 +55,21 @@ class PayloadSizeLimitMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         content_length = request.headers.get("content-length")
-        if content_length and int(content_length) > max_body_bytes:
-            response = JSONResponse(
-                status_code=413,
-                content={
-                    "message": "Request body exceeded the configured Secure AI Interaction Layer limit.",
-                    "max_body_bytes": max_body_bytes,
-                },
-            )
-            return apply_security_headers(response)
+        if content_length:
+            try:
+                declared_size = int(content_length)
+            except ValueError:
+                declared_size = 0
+
+            if declared_size > max_body_bytes:
+                response = JSONResponse(
+                    status_code=413,
+                    content={
+                        "message": "Request body exceeded the configured Secure AI Interaction Layer limit.",
+                        "max_body_bytes": max_body_bytes,
+                    },
+                )
+                return apply_security_headers(response)
 
         return await call_next(request)
 

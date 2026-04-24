@@ -4,25 +4,26 @@ import base64
 import math
 import re
 import unicodedata
+from copy import deepcopy
 from typing import Any, Dict, List
 
 from src.config.config_loader import get_policy_config
 
 
-SUSPICIOUS_KEYWORDS = {
-    "ignore all previous instructions": 12,
-    "system prompt": 10,
-    "developer message": 10,
-    "dump the users table": 10,
-    "exfiltrate": 8,
-    "override safety": 8,
-    "pretend you are dan": 10,
-    "jailbreak": 8,
-    "select * from": 7,
-    "drop table": 10,
-    "where 1=1": 8,
-    "base64": 5,
-    "admin mode": 6,
+DEFAULT_SUSPICIOUS_KEYWORDS = {
+    "ignore all previous instructions": {"weight": 12, "family": "prompt_injection"},
+    "system prompt": {"weight": 10, "family": "prompt_injection"},
+    "developer message": {"weight": 10, "family": "prompt_injection"},
+    "dump the users table": {"weight": 10, "family": "data_exfiltration"},
+    "exfiltrate": {"weight": 8, "family": "data_exfiltration"},
+    "override safety": {"weight": 8, "family": "prompt_injection"},
+    "pretend you are dan": {"weight": 10, "family": "prompt_injection"},
+    "jailbreak": {"weight": 8, "family": "prompt_injection"},
+    "select * from": {"weight": 7, "family": "sql_abuse"},
+    "drop table": {"weight": 10, "family": "sql_abuse"},
+    "where 1=1": {"weight": 8, "family": "sql_abuse"},
+    "base64": {"weight": 5, "family": "encoded_payload"},
+    "admin mode": {"weight": 6, "family": "privilege_escalation"},
 }
 
 
@@ -41,7 +42,8 @@ class ThreatScoringEngine:
         pattern_score = min(40, int(inspection.get("pattern_score", 0)))
         semantic = self._semantic_score(text)
         session_score = self._session_score(session_context.get("risky_request_count", 0))
-        threat_score = min(100, pattern_score + session_score + semantic["score"])
+        family_boost = min(12, len(semantic["families"]) * 6) if semantic["families"] else 0
+        threat_score = min(100, pattern_score + session_score + semantic["score"] + family_boost)
 
         risk_level = "GREEN"
         if threat_score >= int(thresholds.get("red", 60)):
@@ -61,10 +63,12 @@ class ThreatScoringEngine:
             "risk_level": risk_level,
             "action_taken": action_taken,
             "threat_score": threat_score,
+            "detected_families": semantic["families"],
             "score_breakdown": {
                 "pattern_match": pattern_score,
                 "session_replay": session_score,
                 "semantic_anomaly": semantic["score"],
+                "adaptive_family_boost": family_boost,
             },
             "combined_signals": combined_signals,
             "semantic_signals": semantic["signals"],
@@ -72,6 +76,7 @@ class ThreatScoringEngine:
                 "method": semantic["method"],
                 "normalized_input_length": len(unicodedata.normalize("NFKC", text)),
                 "prior_risky_requests": session_context.get("risky_request_count", 0),
+                "adaptive_families": semantic["families"],
             },
         }
 
@@ -82,33 +87,55 @@ class ThreatScoringEngine:
         return min(35, int(math.ceil(min(risky_request_count, 10) * 3.5)))
 
     def _semantic_score(self, text: str) -> Dict[str, Any]:
+        config = get_policy_config()
         normalized = unicodedata.normalize("NFKC", text)
         lowered = normalized.lower()
         score = 0
         signals: List[str] = []
+        families = set()
 
-        for keyword, weight in SUSPICIOUS_KEYWORDS.items():
+        for keyword, metadata in self._load_semantic_keywords(config).items():
             if keyword in lowered:
-                score += weight
+                score += int(metadata["weight"])
                 signals.append(f"semantic:{keyword}")
+                family = metadata.get("family")
+                if family:
+                    families.add(str(family))
 
         if normalized != text:
             score += 4
             signals.append("semantic:unicode_normalization")
+            families.add("encoded_payload")
 
         if len(normalized) > 1600:
             score += 6
             signals.append("semantic:context_overflow")
+            families.add("context_overflow")
 
         if self._looks_like_base64_payload(normalized):
             score += 8
             signals.append("semantic:encoded_payload")
+            families.add("encoded_payload")
 
         return {
             "score": min(25, score),
             "signals": signals,
-            "method": "heuristic-fallback",
+            "families": sorted(families),
+            "method": "heuristic-fallback+adaptive-policy",
         }
+
+    def _load_semantic_keywords(self, config: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+        merged = deepcopy(DEFAULT_SUSPICIOUS_KEYWORDS)
+        adaptive_signals = config.get("adaptive_defense", {}).get("semantic_signals", [])
+        for signal in adaptive_signals:
+            pattern = str(signal.get("pattern", "")).strip().lower()
+            if not pattern:
+                continue
+            merged[pattern] = {
+                "weight": int(signal.get("weight", 5)),
+                "family": signal.get("family", "adaptive"),
+            }
+        return merged
 
     def _looks_like_base64_payload(self, text: str) -> bool:
         for token in re.findall(r"[A-Za-z0-9+/=]{24,}", text):

@@ -1,23 +1,21 @@
 import pytest
-from src.egress.redactor import EgressRedactor
-from src.audit.logger import AuditLogger
-from src.config.config_loader import update_active_policy
 import os
 import tempfile
 import yaml
 
+from src.audit.logger import AuditLogger
+from src.config.config_loader import update_active_policy
+from src.egress.redactor import EgressRedactor
+
+from tests.helpers import make_policy
+
 @pytest.fixture(autouse=True)
 def setup_policy():
-    policy = {
-        "pii_patterns": {
-            "pan": "[A-Z]{5}[0-9]{4}[A-Z]{1}",
-            "aadhaar": "\\b\\d{4}\\s?\\d{4}\\s?\\d{4}\\b"
-        }
-    }
-    with tempfile.NamedTemporaryFile('w', delete=False, suffix=".yaml") as f:
-        yaml.dump(policy, f)
+    policy = make_policy()
+    with tempfile.NamedTemporaryFile("w", delete=False, suffix=".yaml") as f:
+        yaml.safe_dump(policy, f)
         filepath = f.name
-    
+
     update_active_policy(filepath)
     yield
     os.unlink(filepath)

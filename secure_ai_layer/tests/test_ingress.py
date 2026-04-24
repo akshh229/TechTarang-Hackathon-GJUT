@@ -1,24 +1,28 @@
 import pytest
-from src.ingress.sanitizer import IngressSanitizer
-from src.config.config_loader import update_active_policy
 import os
 import tempfile
 import yaml
 
+from src.config.config_loader import update_active_policy
+from src.ingress.sanitizer import IngressSanitizer
+
+from tests.helpers import make_policy
+
 @pytest.fixture(autouse=True)
 def setup_policy():
-    policy = {
-        "injection_rules": [
-            {"pattern": "ignore all", "severity": "CRITICAL"},
-            {"pattern": "system prompt", "severity": "HIGH"},
-            {"pattern": "override", "severity": "MEDIUM"}
-        ],
-        "risk_thresholds": {"amber": 30, "red": 60}
-    }
-    with tempfile.NamedTemporaryFile('w', delete=False, suffix=".yaml") as f:
-        yaml.dump(policy, f)
+    policy = make_policy(
+        {
+            "injection_rules": [
+                {"pattern": "ignore all", "severity": "CRITICAL"},
+                {"pattern": "system prompt", "severity": "HIGH"},
+                {"pattern": "override", "severity": "MEDIUM"},
+            ]
+        }
+    )
+    with tempfile.NamedTemporaryFile("w", delete=False, suffix=".yaml") as f:
+        yaml.safe_dump(policy, f)
         filepath = f.name
-    
+
     update_active_policy(filepath)
     yield
     os.unlink(filepath)

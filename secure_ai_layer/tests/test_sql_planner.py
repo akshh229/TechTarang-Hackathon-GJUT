@@ -1,24 +1,29 @@
 import pytest
-from src.sql_planner.planner import SQLPlanner
-from src.config.config_loader import update_active_policy
 import os
 import tempfile
 import yaml
 
+from src.config.config_loader import update_active_policy
+from src.sql_planner.planner import SQLPlanner
+
+from tests.helpers import make_policy
+
 @pytest.fixture(autouse=True)
 def setup_policy():
-    policy = {
-        "sql_policy": {
-            "templates": {
-                "GET_ACCOUNT_BALANCE": "SELECT balance FROM accounts WHERE user_id = :user_id",
-                "GET_USER_PROFILE": "SELECT name, email, phone FROM users WHERE user_id = :user_id"
+    policy = make_policy(
+        {
+            "sql_policy": {
+                "templates": {
+                    "GET_ACCOUNT_BALANCE": "SELECT balance FROM accounts WHERE user_id = :user_id",
+                    "GET_USER_PROFILE": "SELECT name, email, phone FROM users WHERE user_id = :user_id",
+                }
             }
         }
-    }
-    with tempfile.NamedTemporaryFile('w', delete=False, suffix=".yaml") as f:
-        yaml.dump(policy, f)
+    )
+    with tempfile.NamedTemporaryFile("w", delete=False, suffix=".yaml") as f:
+        yaml.safe_dump(policy, f)
         filepath = f.name
-    
+
     update_active_policy(filepath)
     yield
     os.unlink(filepath)
