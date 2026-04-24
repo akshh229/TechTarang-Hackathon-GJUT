@@ -2,7 +2,7 @@ import sqlite3
 import json
 import uuid
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, List
 
 class AuditLogger:
@@ -17,7 +17,8 @@ class AuditLogger:
         self._init_db()
         
     def _init_db(self):
-        with sqlite3.connect(self.db_path) as conn:
+        conn = sqlite3.connect(self.db_path)
+        try:
             # WAL mode is critical for concurrent FastApi reads (e.g. Dashboard) while streaming writes
             conn.execute("PRAGMA journal_mode=WAL")
             
@@ -47,6 +48,8 @@ class AuditLogger:
             """)
             self._ensure_columns(conn)
             conn.commit()
+        finally:
+            conn.close()
 
     def _ensure_columns(self, conn: sqlite3.Connection) -> None:
         expected_columns = {
@@ -74,7 +77,8 @@ class AuditLogger:
         Append-only insert logic.
         """
         request_id = str(record.get("request_id", uuid.uuid4()))
-        with sqlite3.connect(self.db_path) as conn:
+        conn = sqlite3.connect(self.db_path)
+        try:
             conn.execute("""
                 INSERT INTO audit_log (
                     request_id, timestamp, session_id, input_hash, input_preview,
@@ -85,7 +89,7 @@ class AuditLogger:
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 request_id,
-                record.get("timestamp", datetime.utcnow().isoformat() + "Z"),
+                record.get("timestamp", datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")),
                 record.get("session_id", ""),
                 record.get("input_hash", ""),
                 record.get("input_preview", ""),
@@ -105,13 +109,18 @@ class AuditLogger:
                 record.get("latency_ms", 0)
             ))
             conn.commit()
+        finally:
+            conn.close()
         return request_id
 
     def get_records(self, limit: int = 50) -> List[Dict[str, Any]]:
-        with sqlite3.connect(self.db_path) as conn:
+        conn = sqlite3.connect(self.db_path)
+        try:
             conn.row_factory = sqlite3.Row
             cursor = conn.execute("SELECT * FROM audit_log ORDER BY timestamp DESC LIMIT ?", (limit,))
             records = [dict(row) for row in cursor.fetchall()]
+        finally:
+            conn.close()
 
         json_fields = {
             "injection_signals",
